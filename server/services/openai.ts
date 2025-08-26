@@ -1,14 +1,18 @@
 import OpenAI from "openai";
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key" 
+  apiKey: process.env.OPENAI_API_KEY 
 });
+
+// Validate API key on startup
+if (!process.env.OPENAI_API_KEY) {
+  console.error("OPENAI_API_KEY environment variable is required");
+}
 
 export async function searchLLMWithQuery(query: string): Promise<string> {
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4",
       messages: [
         {
           role: "user",
@@ -43,7 +47,7 @@ Generate queries that are:
 Respond with a JSON object containing an array of query strings: { "queries": ["query1", "query2", ...] }`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4",
       messages: [
         {
           role: "system",

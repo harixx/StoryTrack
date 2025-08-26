@@ -93,20 +93,20 @@ export default function AddStoryModal({ open, onOpenChange }: AddStoryModalProps
 
     setIsGeneratingQueries(true);
     try {
-      // For demo purposes, we'll generate some sample queries
-      // In a real implementation, this would call the OpenAI service
-      const sampleQueries = [
-        `What is ${title.split(' ').slice(0, 3).join(' ')}?`,
-        `Latest news about ${tags[0] || 'technology'}`,
-        `Best practices for ${tags[1] || 'business'}`,
-        `How to ${title.toLowerCase().includes('launch') ? 'launch' : 'implement'} ${tags[0] || 'solutions'}`,
-      ].filter(q => q.length > 10);
+      const response = await fetch("/api/generate-queries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content, tags: Array.isArray(tags) ? tags : [] }),
+      });
 
-      setGeneratedQueries(sampleQueries);
+      if (!response.ok) throw new Error("Failed to generate queries");
+      
+      const data = await response.json();
+      setGeneratedQueries(data.queries || []);
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to generate queries. Please try again.",
+        title: "Error", 
+        description: "Failed to generate AI queries. Please try again.",
         variant: "destructive",
       });
     } finally {

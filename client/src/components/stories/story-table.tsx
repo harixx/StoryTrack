@@ -310,10 +310,70 @@ export default function StoryTable() {
         </DialogHeader>
         {editStory && (
           <div className="space-y-4">
-            <p className="text-sm text-slate-600">Edit functionality coming soon. For now, you can view and delete stories.</p>
             <div>
-              <h3 className="font-semibold text-lg">{editStory.title}</h3>
-              <p className="text-sm text-slate-500 mt-1">{editStory.category} • {editStory.status}</p>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
+              <Input 
+                value={editStory.title} 
+                onChange={(e) => setEditStory({...editStory, title: e.target.value})}
+                placeholder="Story title"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Content</label>
+              <Textarea 
+                value={editStory.content} 
+                onChange={(e) => setEditStory({...editStory, content: e.target.value})}
+                rows={6}
+                placeholder="Story content"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
+                <Input 
+                  value={editStory.category} 
+                  onChange={(e) => setEditStory({...editStory, category: e.target.value})}
+                  placeholder="Category"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Priority</label>
+                <Select 
+                  value={editStory.priority} 
+                  onValueChange={(value) => setEditStory({...editStory, priority: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button variant="outline" onClick={() => setEditStory(null)}>
+                Cancel
+              </Button>
+              <Button onClick={async () => {
+                try {
+                  await apiRequest("PUT", `/api/stories/${editStory.id}`, {
+                    title: editStory.title,
+                    content: editStory.content,
+                    category: editStory.category,
+                    priority: editStory.priority
+                  });
+                  queryClient.invalidateQueries({ queryKey: ["/api/stories"] });
+                  setEditStory(null);
+                  toast({ title: "Story updated", description: "Your changes have been saved." });
+                } catch (error) {
+                  toast({ title: "Error", description: "Failed to update story.", variant: "destructive" });
+                }
+              }}>
+                Save Changes
+              </Button>
             </div>
           </div>
         )}

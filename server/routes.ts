@@ -1,12 +1,27 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { dbStorage as storage } from "./db";
 import { insertStorySchema, insertSearchQuerySchema } from "@shared/schema";
 import { queryGenerator } from "./services/queryGenerator";
-import { searchLLMWithQuery } from "./services/openai";
+import { searchLLMWithQuery, generateSearchQueries } from "./services/openai";
 import { citationDetector } from "./services/citationDetector";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // Generate queries endpoint for frontend
+  app.post("/api/generate-queries", async (req, res) => {
+    try {
+      const { title, content, tags } = req.body;
+      if (!title || !content) {
+        return res.status(400).json({ error: "Title and content are required" });
+      }
+      
+      const queries = await generateSearchQueries(title, content, tags || []);
+      res.json({ queries });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to generate queries" });
+    }
+  });
   
   // Dashboard stats
   app.get("/api/dashboard/stats", async (req, res) => {
@@ -237,27 +252,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete story
-  app.delete("/api/stories/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      await storage.deleteStory(id);
-      res.json({ message: "Story deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete story" });
-    }
-  });
-
-  // Delete query
-  app.delete("/api/queries/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      await storage.deleteSearchQuery(id);
-      res.json({ message: "Query deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete query" });
-    }
-  });
 
   // Export report
   app.get("/api/export/report", async (req, res) => {
