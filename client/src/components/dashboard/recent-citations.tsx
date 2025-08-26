@@ -1,11 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ExternalLink, Quote } from "lucide-react";
 import { Citation } from "@shared/schema";
+import { useLocation } from "wouter";
 
 export default function RecentCitations() {
+  const [, setLocation] = useLocation();
+  
   const { data: citations, isLoading } = useQuery<Citation[]>({
     queryKey: ["/api/dashboard/recent-citations"],
   });
@@ -19,7 +22,13 @@ export default function RecentCitations() {
         <CardContent>
           <div className="animate-pulse space-y-4">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-16 bg-gray-200 rounded-lg"></div>
+              <div key={i} className="flex items-start space-x-3">
+                <div className="w-8 h-8 bg-gray-200 rounded-lg"></div>
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              </div>
             ))}
           </div>
         </CardContent>
@@ -29,56 +38,67 @@ export default function RecentCitations() {
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Recent Citations</CardTitle>
-          <Button variant="ghost" size="sm" data-testid="button-view-all-citations">
-            View All
-          </Button>
-        </div>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Recent Citations</CardTitle>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => setLocation("/citations")}
+          data-testid="button-view-all-citations"
+        >
+          <ExternalLink className="h-4 w-4 mr-1" />
+          View All
+        </Button>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {citations?.slice(0, 3).map((citation) => (
-            <div 
-              key={citation.id} 
-              className="flex items-start space-x-4 p-4 rounded-lg border border-slate-100 hover:bg-slate-50"
-              data-testid={`citation-item-${citation.id}`}
-            >
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Check className="text-green-600 h-5 w-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900" data-testid={`citation-query-${citation.id}`}>
-                  "{citation.query}"
-                </p>
-                <p className="text-sm text-slate-500 mt-1" data-testid={`citation-platform-${citation.id}`}>
-                  Found in {citation.platform} response
-                </p>
-                <div className="flex items-center mt-2 space-x-4">
-                  <span className="text-xs text-slate-400" data-testid={`citation-time-${citation.id}`}>
+        {citations && citations.length > 0 ? (
+          <div className="space-y-4">
+            {citations.slice(0, 5).map((citation) => (
+              <div 
+                key={citation.id} 
+                className="flex items-start space-x-3 p-3 hover:bg-slate-50 rounded-lg transition-colors"
+                data-testid={`citation-item-${citation.id}`}
+              >
+                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Quote className="h-4 w-4 text-green-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm font-medium text-slate-900 truncate" data-testid={`citation-platform-${citation.id}`}>
+                      Found on {citation.platform}
+                    </p>
+                    <Badge 
+                      variant={(citation.confidence ?? 0) > 70 ? 'default' : (citation.confidence ?? 0) > 40 ? 'secondary' : 'outline'}
+                      className="ml-2"
+                      data-testid={`citation-confidence-${citation.id}`}
+                    >
+                      {citation.confidence ?? 0}%
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-600 truncate mb-1" data-testid={`citation-query-${citation.id}`}>
+                    "{citation.query}"
+                  </p>
+                  {citation.citationText && (
+                    <p className="text-xs text-slate-500 line-clamp-2" data-testid={`citation-text-${citation.id}`}>
+                      "{citation.citationText}"
+                    </p>
+                  )}
+                  <p className="text-xs text-slate-400 mt-1" data-testid={`citation-date-${citation.id}`}>
                     {new Date(citation.foundAt!).toLocaleDateString()}
-                  </span>
-                  <Badge 
-                    variant="default" 
-                    className="text-xs"
-                    data-testid={`citation-confidence-${citation.id}`}
-                  >
-                    {citation.confidence}% confidence
-                  </Badge>
+                  </p>
                 </div>
               </div>
-            </div>
-          ))}
-
-          {(!citations || citations.length === 0) && (
-            <div className="text-center py-8" data-testid="empty-citations">
-              <Check className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 mb-2">No citations yet</h3>
-              <p className="text-slate-500">Start by adding stories and running citation searches.</p>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8" data-testid="empty-recent-citations">
+            <Quote className="h-8 w-8 text-slate-300 mx-auto mb-3" />
+            <h3 className="text-sm font-medium text-slate-900 mb-1">No citations yet</h3>
+            <p className="text-xs text-slate-500">
+              Start by adding stories and running citation searches.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

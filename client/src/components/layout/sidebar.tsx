@@ -1,73 +1,118 @@
-import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useLocation } from "wouter";
 import { 
-  BarChart3, 
+  LayoutDashboard, 
   FileText, 
   Search, 
   Quote, 
   Settings,
-  Newspaper
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
-import ThemeToggle from "@/components/common/theme-toggle";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { DashboardStats } from "@shared/schema";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: BarChart3 },
-  { name: "Stories", href: "/stories", icon: FileText },
-  { name: "Search Queries", href: "/queries", icon: Search },
-  { name: "Citations", href: "/citations", icon: Quote },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, testId: "nav-dashboard" },
+  { name: "Stories", href: "/stories", icon: FileText, testId: "nav-stories" },
+  { name: "Queries", href: "/queries", icon: Search, testId: "nav-queries" },
+  { name: "Citations", href: "/citations", icon: Quote, testId: "nav-citations" },
+  { name: "Settings", href: "/settings", icon: Settings, testId: "nav-settings" },
 ];
 
 export default function Sidebar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
+
+  const { data: stats } = useQuery<DashboardStats>({
+    queryKey: ["/api/dashboard/stats"],
+  });
 
   return (
-    <div className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col">
-      <div className="p-6 border-b border-slate-200 dark:border-slate-800">
+    <div className={cn(
+      "bg-white border-r border-slate-200 flex flex-col transition-all duration-200",
+      collapsed ? "w-16" : "w-64"
+    )}>
+      {/* Header */}
+      <div className="p-4 border-b border-slate-200">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-              <Newspaper className="text-white text-sm" />
+          {!collapsed && (
+            <div>
+              <h1 className="text-lg font-semibold text-slate-900" data-testid="text-app-title">
+                Citation Tracker
+              </h1>
+              <p className="text-xs text-slate-500">Monitor your content citations</p>
             </div>
-            <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">LLM Citation Tracker</h1>
-          </div>
-          <ThemeToggle />
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCollapsed(!collapsed)}
+            data-testid="button-toggle-sidebar"
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </Button>
         </div>
       </div>
-      
+
+      {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
         {navigation.map((item) => {
-          const Icon = item.icon;
           const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
           
           return (
-            <Link
+            <Button
               key={item.name}
-              href={item.href}
+              variant={isActive ? "default" : "ghost"}
               className={cn(
-                "flex items-center space-x-3 px-3 py-2 rounded-lg font-medium transition-colors",
-                isActive
-                  ? "bg-primary-50 dark:bg-primary-900 text-primary-700 dark:text-primary-300"
-                  : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                "w-full justify-start",
+                collapsed && "px-2"
               )}
-              data-testid={`nav-${item.name.toLowerCase().replace(/\s+/g, '-')}`}
+              onClick={() => setLocation(item.href)}
+              data-testid={item.testId}
             >
-              <Icon className="w-5 h-5" />
-              <span>{item.name}</span>
-            </Link>
+              <item.icon className={cn("h-4 w-4", !collapsed && "mr-3")} />
+              {!collapsed && (
+                <span className="flex-1 text-left">{item.name}</span>
+              )}
+              {!collapsed && item.name === "Citations" && stats && stats.citations > 0 && (
+                <Badge variant="secondary" className="ml-auto">
+                  {stats.citations}
+                </Badge>
+              )}
+            </Button>
           );
         })}
       </nav>
-      
-      <div className="p-4 border-t border-slate-200 dark:border-slate-800">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-slate-300 dark:bg-slate-600 rounded-full"></div>
-          <div>
-            <p className="text-sm font-medium text-slate-900 dark:text-slate-100" data-testid="text-user-name">Admin User</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400" data-testid="text-user-role">Citation Manager</p>
+
+      {/* Stats Footer */}
+      {!collapsed && stats && (
+        <div className="p-4 border-t border-slate-200 bg-slate-50">
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600">Stories:</span>
+              <span className="font-medium" data-testid="text-sidebar-stories">
+                {stats.totalStories}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600">Citations:</span>
+              <span className="font-medium" data-testid="text-sidebar-citations">
+                {stats.citations}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600">Rate:</span>
+              <span className="font-medium" data-testid="text-sidebar-rate">
+                {stats.citationRate}%
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Download, Plus } from "lucide-react";
 import { useState } from "react";
-import AddStoryModal from "@/components/stories/add-story-modal";
+import AddStoryModal from "@/components/stories/add-story-modal-simple";
 
 interface HeaderProps {
   title: string;

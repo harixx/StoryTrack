@@ -1,7 +1,43 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
-import { Newspaper, Quote, Search, PieChart } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FileText, Quote, Search, TrendingUp } from "lucide-react";
 import { DashboardStats } from "@shared/schema";
+
+const statCards = [
+  {
+    title: "Total Stories",
+    key: "totalStories" as keyof DashboardStats,
+    icon: FileText,
+    color: "text-blue-600",
+    bgColor: "bg-blue-100",
+    testId: "stat-total-stories"
+  },
+  {
+    title: "Citations Found",
+    key: "citations" as keyof DashboardStats,
+    icon: Quote,
+    color: "text-green-600",
+    bgColor: "bg-green-100",
+    testId: "stat-citations"
+  },
+  {
+    title: "Active Queries",
+    key: "queries" as keyof DashboardStats,
+    icon: Search,
+    color: "text-purple-600",
+    bgColor: "bg-purple-100",
+    testId: "stat-queries"
+  },
+  {
+    title: "Citation Rate",
+    key: "citationRate" as keyof DashboardStats,
+    icon: TrendingUp,
+    color: "text-orange-600",
+    bgColor: "bg-orange-100",
+    suffix: "%",
+    testId: "stat-citation-rate"
+  },
+];
 
 export default function StatsGrid() {
   const { data: stats, isLoading } = useQuery<DashboardStats>({
@@ -10,87 +46,46 @@ export default function StatsGrid() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[...Array(4)].map((_, i) => (
           <Card key={i}>
-            <CardContent className="p-6">
+            <CardHeader className="pb-2">
               <div className="animate-pulse">
-                <div className="h-6 bg-gray-200 rounded mb-2"></div>
-                <div className="h-8 bg-gray-200 rounded mb-4"></div>
-                <div className="h-4 bg-gray-200 rounded"></div>
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-8 bg-gray-200 rounded w-1/2"></div>
               </div>
-            </CardContent>
+            </CardHeader>
           </Card>
         ))}
       </div>
     );
   }
 
-  const statsCards = [
-    {
-      title: "Total Stories",
-      value: stats?.totalStories || 0,
-      icon: Newspaper,
-      iconBg: "bg-primary-100",
-      iconColor: "text-primary-600",
-      change: stats?.totalStories > 0 ? "+12%" : "0%",
-      changeText: "from last month",
-      testId: "total-stories"
-    },
-    {
-      title: "Citations Found",
-      value: stats?.citations || 0,
-      icon: Quote,
-      iconBg: "bg-green-100",
-      iconColor: "text-green-600",
-      change: stats?.citations > 0 ? "+8%" : "0%",
-      changeText: "from last month",
-      testId: "citations-found"
-    },
-    {
-      title: "Search Queries",
-      value: stats?.queries || 0,
-      icon: Search,
-      iconBg: "bg-amber-100",
-      iconColor: "text-amber-600",
-      change: stats?.queries > 0 ? "+15%" : "0%",
-      changeText: "from last month",
-      testId: "search-queries"
-    },
-    {
-      title: "Citation Rate",
-      value: `${stats?.citationRate || 0}%`,
-      icon: PieChart,
-      iconBg: "bg-purple-100",
-      iconColor: "text-purple-600",
-      change: (stats?.citationRate || 0) > 0 ? "+3%" : "0%",
-      changeText: "from last month",
-      testId: "citation-rate"
-    },
-  ];
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-      {statsCards.map((card) => {
-        const Icon = card.icon;
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {statCards.map((stat) => {
+        const value = stats ? stats[stat.key] : 0;
+        const displayValue = `${value}${stat.suffix || ''}`;
+
         return (
-          <Card key={card.testId}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">{card.title}</p>
-                  <p className="text-2xl font-bold text-slate-900" data-testid={`stat-${card.testId}`}>
-                    {card.value}
-                  </p>
-                </div>
-                <div className={`w-12 h-12 ${card.iconBg} rounded-lg flex items-center justify-center`}>
-                  <Icon className={`${card.iconColor}`} />
-                </div>
+          <Card key={stat.title} data-testid={stat.testId}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-slate-600">
+                {stat.title}
+              </CardTitle>
+              <div className={`p-2 rounded-lg ${stat.bgColor}`}>
+                <stat.icon className={`h-4 w-4 ${stat.color}`} />
               </div>
-              <div className="mt-4 flex items-center">
-                <span className="text-sm text-green-600 font-medium">{card.change}</span>
-                <span className="text-sm text-slate-500 ml-2">{card.changeText}</span>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-slate-900" data-testid={`${stat.testId}-value`}>
+                {displayValue}
               </div>
+              {stat.key === 'citationRate' && (
+                <p className="text-xs text-slate-500 mt-1">
+                  {value >= 10 ? 'Good' : value >= 5 ? 'Fair' : 'Low'} detection rate
+                </p>
+              )}
             </CardContent>
           </Card>
         );

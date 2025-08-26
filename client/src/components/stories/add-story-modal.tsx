@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
-import { X, Wand2 } from "lucide-react";
+import { X, Wand2, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { insertStorySchema, type InsertStory } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
+// import { TagInput } from "@/components/ui/tag-input";
 
 interface AddStoryModalProps {
   open: boolean;
@@ -232,11 +233,14 @@ export default function AddStoryModal({ open, onOpenChange }: AddStoryModalProps
                 <FormItem>
                   <FormLabel>Tags</FormLabel>
                   <FormControl>
-                    <Input 
+                    <Input
                       placeholder="Enter tags separated by commas..."
-                      data-testid="input-tags"
                       value={Array.isArray(field.value) ? field.value.join(', ') : field.value || ''}
-                      onChange={(e) => field.onChange(e.target.value)}
+                      onChange={(e) => {
+                        const tags = e.target.value.split(',').map(tag => tag.trim()).filter(Boolean);
+                        field.onChange(tags);
+                      }}
+                      data-testid="input-tags"
                     />
                   </FormControl>
                   <p className="text-xs text-slate-500">These will be used to generate search queries</p>
@@ -253,11 +257,20 @@ export default function AddStoryModal({ open, onOpenChange }: AddStoryModalProps
                   variant="outline"
                   size="sm"
                   onClick={handleGenerateQueries}
-                  disabled={isGeneratingQueries}
+                  disabled={isGeneratingQueries || !title.trim() || !content.trim()}
                   data-testid="button-generate-queries"
                 >
-                  <Wand2 className="h-4 w-4 mr-2" />
-                  {isGeneratingQueries ? "Generating..." : "Generate"}
+                  {isGeneratingQueries ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="h-4 w-4 mr-2" />
+                      Generate
+                    </>
+                  )}
                 </Button>
               </div>
 
