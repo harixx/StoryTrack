@@ -125,17 +125,7 @@ export default function AddStoryModal({ open, onOpenChange }: AddStoryModalProps
   };
 
   const onSubmit = (data: InsertStory) => {
-    // Parse tags if they're a string
-    const processedData = {
-      ...data,
-      tags: Array.isArray(data.tags) 
-        ? data.tags
-        : typeof data.tags === 'string' 
-        ? data.tags.split(',').map((tag: string) => tag.trim()).filter(Boolean)
-        : [],
-    };
-    
-    createStoryMutation.mutate(processedData);
+    createStoryMutation.mutate(data);
   };
 
   return (

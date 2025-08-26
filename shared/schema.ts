@@ -55,6 +55,11 @@ export const insertStorySchema = createInsertSchema(stories).omit({
   createdAt: true,
   updatedAt: true,
   publishedAt: true,
+}).extend({
+  tags: z.union([
+    z.array(z.string()),
+    z.string().transform((str) => str.split(',').map(tag => tag.trim()).filter(Boolean))
+  ]).optional().default([]),
 });
 
 export const insertSearchQuerySchema = createInsertSchema(searchQueries).omit({
