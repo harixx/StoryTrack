@@ -15,7 +15,7 @@ export async function searchLLMWithQuery(query: string): Promise<string> {
           content: query,
         }
       ],
-      max_tokens: 1000,
+      max_completion_tokens: 1000,
     });
 
     return response.choices[0].message.content || "";
