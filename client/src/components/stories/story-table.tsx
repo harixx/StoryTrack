@@ -95,6 +95,7 @@ export default function StoryTable() {
   }
 
   return (
+    <>
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
