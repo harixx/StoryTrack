@@ -1,15 +1,22 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY 
-});
+let openai: OpenAI | null = null;
 
-// Validate API key on startup
-if (!process.env.OPENAI_API_KEY) {
-  console.error("OPENAI_API_KEY environment variable is required");
+// Initialize OpenAI only if API key is available
+if (process.env.OPENAI_API_KEY) {
+  openai = new OpenAI({ 
+    apiKey: process.env.OPENAI_API_KEY 
+  });
+  console.log("OpenAI API initialized successfully");
+} else {
+  console.warn("OPENAI_API_KEY not found - OpenAI features will be disabled");
 }
 
 export async function searchLLMWithQuery(query: string): Promise<string> {
+  if (!openai) {
+    throw new Error("OpenAI API is not configured. Please provide OPENAI_API_KEY environment variable.");
+  }
+  
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4",
@@ -29,6 +36,10 @@ export async function searchLLMWithQuery(query: string): Promise<string> {
 }
 
 export async function generateSearchQueries(storyTitle: string, storyContent: string, tags: string[]): Promise<string[]> {
+  if (!openai) {
+    throw new Error("OpenAI API is not configured. Please provide OPENAI_API_KEY environment variable.");
+  }
+  
   try {
     const prompt = `Based on the following news story, generate 5-8 relevant search queries that people might ask a large language model when looking for information related to this story's topic. The queries should be natural questions or search terms that would likely result in this story being mentioned as a relevant source.
 

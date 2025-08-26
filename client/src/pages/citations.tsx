@@ -111,17 +111,18 @@ export default function Citations() {
                     </div>
                   </div>
                 </div>
-              ))}
-              {(!citations || citations.length === 0) && (
-                <div className="text-center py-12" data-testid="empty-state-citations">
-                  <Quote className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900 mb-2">No citations found</h3>
-                  <p className="text-slate-500">Run citation searches on your stories to discover references.</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+                {(!citations || citations.length === 0) && (
+                  <div className="text-center py-12" data-testid="empty-state-citations">
+                    <Quote className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-slate-900 mb-2">No citations found</h3>
+                    <p className="text-slate-500">Run citation searches on your stories to discover references.</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </main>
     </>
   );
