@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Quote, ExternalLink } from "lucide-react";
 import { Citation } from "@shared/schema";
+import EmptyState from "@/components/common/empty-state";
 
 export default function Citations() {
   const { data: citations, isLoading } = useQuery<Citation[]>({
@@ -35,18 +36,29 @@ export default function Citations() {
         subtitle="Review discovered citations of your stories"
       />
       <main className="flex-1 p-6 overflow-y-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>All Citations</span>
-              <Badge variant="secondary" data-testid="text-citation-count">
-                {citations?.length || 0} citations
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {citations?.map((citation) => (
+        {citations && citations.length === 0 ? (
+          <EmptyState
+            icon={<Quote className="h-8 w-8 text-slate-400" />}
+            title="No Citations Found"
+            description="Run citation searches on your published stories to discover where your content is being referenced by AI systems."
+            action={{
+              label: "Search for Citations",
+              onClick: () => window.location.href = "/stories"
+            }}
+          />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>All Citations</span>
+                <Badge variant="secondary" data-testid="text-citation-count">
+                  {citations?.length || 0} citations
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {citations?.map((citation) => (
                 <div 
                   key={citation.id} 
                   className="p-6 border border-slate-200 rounded-lg hover:bg-slate-50"

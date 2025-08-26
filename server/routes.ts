@@ -196,7 +196,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No active queries found for this story" });
       }
 
+      console.log(`Starting citation search for ${activeQueries.length} queries`);
       const searchResults = [];
+      const citations = [];
       const foundCitations = [];
 
       for (const query of activeQueries) {
