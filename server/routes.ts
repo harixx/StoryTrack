@@ -237,6 +237,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete story
+  app.delete("/api/stories/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteStory(id);
+      res.json({ message: "Story deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete story" });
+    }
+  });
+
+  // Delete query
+  app.delete("/api/queries/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteSearchQuery(id);
+      res.json({ message: "Query deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete query" });
+    }
+  });
+
   // Export report
   app.get("/api/export/report", async (req, res) => {
     try {

@@ -1,14 +1,63 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Header from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Trash2 } from "lucide-react";
+import { Search, Trash2, Plus } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { SearchQuery } from "@shared/schema";
 
 export default function Queries() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
   const { data: queries, isLoading } = useQuery<SearchQuery[]>({
     queryKey: ["/api/queries"],
+  });
+
+  const deleteQueryMutation = useMutation({
+    mutationFn: async (queryId: string) => {
+      const response = await apiRequest("DELETE", `/api/queries/${queryId}`);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/queries"] });
+      toast({
+        title: "Query deleted",
+        description: "Search query has been removed.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete query. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const runSingleQueryMutation = useMutation({
+    mutationFn: async (query: SearchQuery) => {
+      if (!query.storyId) throw new Error("No story associated with this query");
+      const response = await apiRequest("POST", `/api/stories/${query.storyId}/search-citations`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stories"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/citations"] });
+      toast({
+        title: "Search completed",
+        description: `Found ${data.citations.length} citations.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Search failed",
+        description: "Failed to run citation search. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   if (isLoading) {
@@ -79,6 +128,8 @@ export default function Queries() {
                     <Button 
                       variant="ghost" 
                       size="sm"
+                      onClick={() => runSingleQueryMutation.mutate(query)}
+                      disabled={runSingleQueryMutation.isPending || !query.storyId}
                       data-testid={`button-search-${query.id}`}
                     >
                       <Search className="h-4 w-4" />
@@ -86,6 +137,8 @@ export default function Queries() {
                     <Button 
                       variant="ghost" 
                       size="sm"
+                      onClick={() => deleteQueryMutation.mutate(query.id)}
+                      disabled={deleteQueryMutation.isPending}
                       data-testid={`button-delete-${query.id}`}
                     >
                       <Trash2 className="h-4 w-4" />

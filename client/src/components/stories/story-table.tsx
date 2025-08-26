@@ -4,15 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Edit, Search, Newspaper, AlertCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Eye, Edit, Search, Newspaper, AlertCircle, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import { StoryWithQueries } from "@shared/schema";
+import { StoryWithQueries, Story } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 
 export default function StoryTable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [viewStory, setViewStory] = useState<Story | null>(null);
+  const [editStory, setEditStory] = useState<Story | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -39,6 +43,28 @@ export default function StoryTable() {
       toast({
         title: "Search failed",
         description: "Failed to search for citations. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteStoryMutation = useMutation({
+    mutationFn: async (storyId: string) => {
+      const response = await apiRequest("DELETE", `/api/stories/${storyId}`);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stories"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      toast({
+        title: "Story deleted",
+        description: "Story has been permanently removed.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete story. Please try again.",
         variant: "destructive",
       });
     },
@@ -172,6 +198,7 @@ export default function StoryTable() {
                       <Button 
                         variant="ghost" 
                         size="sm"
+                        onClick={() => setViewStory(story)}
                         data-testid={`button-view-${story.id}`}
                       >
                         <Eye className="h-4 w-4" />
@@ -179,9 +206,19 @@ export default function StoryTable() {
                       <Button 
                         variant="ghost" 
                         size="sm"
+                        onClick={() => setEditStory(story)}
                         data-testid={`button-edit-${story.id}`}
                       >
                         <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => deleteStoryMutation.mutate(story.id)}
+                        disabled={deleteStoryMutation.isPending}
+                        data-testid={`button-delete-${story.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="ghost" 
@@ -216,5 +253,71 @@ export default function StoryTable() {
         </div>
       </CardContent>
     </Card>
+    
+    {/* View Story Dialog */}
+    <Dialog open={!!viewStory} onOpenChange={() => setViewStory(null)}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>View Story</DialogTitle>
+        </DialogHeader>
+        {viewStory && (
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-semibold text-lg">{viewStory.title}</h3>
+              <div className="flex items-center space-x-2 mt-2">
+                <Badge variant={viewStory.status === 'published' ? 'default' : 'secondary'}>
+                  {viewStory.status}
+                </Badge>
+                <Badge variant={viewStory.priority === 'high' ? 'destructive' : 'default'}>
+                  {viewStory.priority}
+                </Badge>
+                <span className="text-sm text-slate-500">{viewStory.category}</span>
+              </div>
+            </div>
+            <div>
+              <h4 className="font-medium mb-2">Content:</h4>
+              <div className="bg-slate-50 rounded-lg p-4 max-h-60 overflow-y-auto">
+                <p className="text-sm whitespace-pre-wrap">{viewStory.content}</p>
+              </div>
+            </div>
+            {viewStory.tags && viewStory.tags.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">Tags:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {viewStory.tags.map((tag, index) => (
+                    <Badge key={index} variant="outline">{tag}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="text-xs text-slate-500">
+              Created: {new Date(viewStory.createdAt!).toLocaleString()}
+              {viewStory.publishedAt && (
+                <> • Published: {new Date(viewStory.publishedAt).toLocaleString()}</>
+              )}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+
+    {/* Edit Story Dialog */}
+    <Dialog open={!!editStory} onOpenChange={() => setEditStory(null)}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Story</DialogTitle>
+        </DialogHeader>
+        {editStory && (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">Edit functionality coming soon. For now, you can view and delete stories.</p>
+            <div>
+              <h3 className="font-semibold text-lg">{editStory.title}</h3>
+              <p className="text-sm text-slate-500 mt-1">{editStory.category} • {editStory.status}</p>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

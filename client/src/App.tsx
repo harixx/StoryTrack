@@ -8,6 +8,7 @@ import Dashboard from "@/pages/dashboard";
 import Stories from "@/pages/stories";
 import Queries from "@/pages/queries";
 import Citations from "@/pages/citations";
+import Settings from "@/pages/settings";
 import Sidebar from "@/components/layout/sidebar";
 
 function Router() {
@@ -21,6 +22,7 @@ function Router() {
           <Route path="/stories" component={Stories} />
           <Route path="/queries" component={Queries} />
           <Route path="/citations" component={Citations} />
+          <Route path="/settings" component={Settings} />
           <Route component={NotFound} />
         </Switch>
       </div>
