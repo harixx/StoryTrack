@@ -1,5 +1,5 @@
-import { drizzle } from "drizzle-orm/neon-serverless";
-import { Pool, neonConfig } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import { stories, searchQueries, searchResults, citations, type Story, type InsertStory, type SearchQuery, type InsertSearchQuery, type SearchResult, type InsertSearchResult, type Citation, type InsertCitation, type StoryWithQueries, type DashboardStats } from "@shared/schema";
 import type { IStorage } from "./storage";
 import { eq, desc, sql, count } from "drizzle-orm";
@@ -8,9 +8,8 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL environment variable is required");
 }
 
-// neonConfig.fetchConnectionCache = true; // This is deprecated
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const db = drizzle(pool);
+const sql = postgres(process.env.DATABASE_URL!);
+const db = drizzle(sql);
 
 export class DatabaseStorage implements IStorage {
   // Stories

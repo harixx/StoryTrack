@@ -51,19 +51,31 @@ Respond with a JSON object containing an array of query strings: { "queries": ["
       messages: [
         {
           role: "system",
-          content: "You are an expert at generating search queries that people would naturally ask when looking for information. Generate realistic, varied queries that would lead someone to find the given news story."
+          content: "You are an expert at generating search queries that people would naturally ask when looking for information. Generate realistic, varied queries that would lead someone to find the given news story. Always respond with a JSON object containing an array of query strings."
         },
         {
           role: "user",
           content: prompt,
         }
       ],
-      response_format: { type: "json_object" },
     });
 
-    const result = JSON.parse(response.choices[0].message.content || "{}");
-    return result.queries || [];
+    const content = response.choices[0].message.content || "";
+    console.log("OpenAI response:", content);
+    
+    // Try to extract JSON from the response
+    try {
+      const result = JSON.parse(content);
+      return result.queries || [];
+    } catch (parseError) {
+      // If it's not valid JSON, try to extract queries manually
+      const lines = content.split('\n').filter(line => 
+        line.trim() && (line.includes('?') || line.includes('how') || line.includes('what') || line.includes('when'))
+      );
+      return lines.slice(0, 5).map(line => line.trim().replace(/^[-*•]\s*/, ''));
+    }
   } catch (error) {
+    console.error("OpenAI query generation error:", error);
     throw new Error(`Failed to generate search queries: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

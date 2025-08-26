@@ -33,7 +33,7 @@ export default function StatsGrid() {
       icon: Newspaper,
       iconBg: "bg-primary-100",
       iconColor: "text-primary-600",
-      change: "+12%",
+      change: stats?.totalStories > 0 ? "+12%" : "0%",
       changeText: "from last month",
       testId: "total-stories"
     },
@@ -43,7 +43,7 @@ export default function StatsGrid() {
       icon: Quote,
       iconBg: "bg-green-100",
       iconColor: "text-green-600",
-      change: "+8%",
+      change: stats?.citations > 0 ? "+8%" : "0%",
       changeText: "from last month",
       testId: "citations-found"
     },
@@ -53,7 +53,7 @@ export default function StatsGrid() {
       icon: Search,
       iconBg: "bg-amber-100",
       iconColor: "text-amber-600",
-      change: "+15%",
+      change: stats?.queries > 0 ? "+15%" : "0%",
       changeText: "from last month",
       testId: "search-queries"
     },
@@ -63,7 +63,7 @@ export default function StatsGrid() {
       icon: PieChart,
       iconBg: "bg-purple-100",
       iconColor: "text-purple-600",
-      change: "+3%",
+      change: (stats?.citationRate || 0) > 0 ? "+3%" : "0%",
       changeText: "from last month",
       testId: "citation-rate"
     },

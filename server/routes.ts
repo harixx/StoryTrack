@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { dbStorage as storage } from "./db";
+import { storage } from "./storage";
 import { insertStorySchema, insertSearchQuerySchema } from "@shared/schema";
 import { queryGenerator } from "./services/queryGenerator";
 import { searchLLMWithQuery, generateSearchQueries } from "./services/openai";
@@ -16,10 +16,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Title and content are required" });
       }
       
+      console.log("Generating queries for:", { title, content, tags });
       const queries = await generateSearchQueries(title, content, tags || []);
+      console.log("Generated queries:", queries);
       res.json({ queries });
     } catch (error) {
-      res.status(500).json({ error: "Failed to generate queries" });
+      console.error("Query generation error:", error);
+      res.status(500).json({ 
+        error: "Failed to generate queries", 
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
   
@@ -68,11 +74,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/stories", async (req, res) => {
     try {
+      console.log("Received story data:", req.body);
       const validatedData = insertStorySchema.parse(req.body);
+      console.log("Validated story data:", validatedData);
       const story = await storage.createStory(validatedData);
       res.status(201).json(story);
     } catch (error) {
-      res.status(400).json({ error: "Invalid story data" });
+      console.error("Story creation error:", error);
+      if (error instanceof Error) {
+        res.status(400).json({ error: `Validation failed: ${error.message}` });
+      } else {
+        res.status(400).json({ error: "Invalid story data" });
+      }
     }
   });
 
