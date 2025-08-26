@@ -8,7 +8,7 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL environment variable is required");
 }
 
-neonConfig.fetchConnectionCache = true;
+// neonConfig.fetchConnectionCache = true; // This is deprecated
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const db = drizzle(pool);
 
@@ -20,28 +20,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getStories(): Promise<Story[]> {
-    return await db.select().from(stories).orderBy(desc(stories.createdAt));
+    try {
+      return await db.select().from(stories).orderBy(desc(stories.createdAt));
+    } catch (error) {
+      console.error("Error in getStories:", error);
+      return [];
+    }
   }
 
   async getStoriesWithQueries(): Promise<StoryWithQueries[]> {
-    const allStories = await this.getStories();
-    
-    const storiesWithQueries = await Promise.all(
-      allStories.map(async (story) => {
-        const queries = await this.getQueriesByStoryId(story.id);
-        const citationCount = await db.select({ count: count() }).from(citations).where(eq(citations.storyId, story.id));
-        const searchResultsForStory = await db.select().from(searchResults).where(eq(searchResults.storyId, story.id)).orderBy(desc(searchResults.searchedAt)).limit(1);
-        
-        return {
-          ...story,
-          queries,
-          citationCount: citationCount[0]?.count || 0,
-          lastSearched: searchResultsForStory[0]?.searchedAt || undefined,
-        };
-      })
-    );
+    try {
+      const allStories = await this.getStories();
+      
+      const storiesWithQueries = await Promise.all(
+        allStories.map(async (story) => {
+          const queries = await this.getQueriesByStoryId(story.id);
+          const citationCountResult = await db.select({ count: count() }).from(citations).where(eq(citations.storyId, story.id));
+          const searchResultsForStory = await db.select().from(searchResults).where(eq(searchResults.storyId, story.id)).orderBy(desc(searchResults.searchedAt)).limit(1);
+          
+          return {
+            ...story,
+            queries,
+            citationCount: Number(citationCountResult[0]?.count || 0),
+            lastSearched: searchResultsForStory[0]?.searchedAt || undefined,
+          };
+        })
+      );
 
-    return storiesWithQueries;
+      return storiesWithQueries;
+    } catch (error) {
+      console.error("Error in getStoriesWithQueries:", error);
+      return [];
+    }
   }
 
   async createStory(story: InsertStory): Promise<Story> {
@@ -137,7 +147,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRecentCitations(limit: number = 10): Promise<Citation[]> {
-    return await db.select().from(citations).orderBy(desc(citations.foundAt)).limit(limit);
+    try {
+      return await db.select().from(citations).orderBy(desc(citations.foundAt)).limit(limit);
+    } catch (error) {
+      console.error("Error in getRecentCitations:", error);
+      return [];
+    }
   }
 
   async createCitation(citation: InsertCitation): Promise<Citation> {
@@ -147,27 +162,37 @@ export class DatabaseStorage implements IStorage {
 
   // Dashboard
   async getDashboardStats(): Promise<DashboardStats> {
-    const [storyCount, citationCount, queryCount] = await Promise.all([
-      db.select({ count: count() }).from(stories),
-      db.select({ count: count() }).from(citations),
-      db.select({ count: count() }).from(searchQueries),
-    ]);
+    try {
+      const [storyCount, citationCount, queryCount] = await Promise.all([
+        db.select({ count: count() }).from(stories),
+        db.select({ count: count() }).from(citations),
+        db.select({ count: count() }).from(searchQueries),
+      ]);
 
-    const searchResultsWithCitations = await db.select({ 
-      total: count(),
-      cited: sql<number>`COUNT(CASE WHEN ${searchResults.cited} THEN 1 END)`
-    }).from(searchResults);
+      const searchResultsWithCitations = await db.select({ 
+        total: count(),
+        cited: sql<number>`COUNT(CASE WHEN ${searchResults.cited} THEN 1 END)`
+      }).from(searchResults);
 
-    const totalSearches = searchResultsWithCitations[0]?.total || 0;
-    const citedSearches = Number(searchResultsWithCitations[0]?.cited) || 0;
-    const citationRate = totalSearches > 0 ? Math.round((citedSearches / totalSearches) * 100) : 0;
+      const totalSearches = Number(searchResultsWithCitations[0]?.total || 0);
+      const citedSearches = Number(searchResultsWithCitations[0]?.cited || 0);
+      const citationRate = totalSearches > 0 ? Math.round((citedSearches / totalSearches) * 100) : 0;
 
-    return {
-      totalStories: storyCount[0]?.count || 0,
-      citations: citationCount[0]?.count || 0,
-      queries: queryCount[0]?.count || 0,
-      citationRate,
-    };
+      return {
+        totalStories: Number(storyCount[0]?.count || 0),
+        citations: Number(citationCount[0]?.count || 0),
+        queries: Number(queryCount[0]?.count || 0),
+        citationRate,
+      };
+    } catch (error) {
+      console.error("Error in getDashboardStats:", error);
+      return {
+        totalStories: 0,
+        citations: 0,
+        queries: 0,
+        citationRate: 0,
+      };
+    }
   }
 }
 
