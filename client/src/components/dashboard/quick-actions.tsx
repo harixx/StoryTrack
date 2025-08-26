@@ -1,12 +1,62 @@
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Plus, Search, Wand2 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { StoryWithQueries } from "@shared/schema";
 import AddStoryModal from "@/components/stories/add-story-modal";
 
 export default function QuickActions() {
   const [showAddModal, setShowAddModal] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: stories } = useQuery<StoryWithQueries[]>({
+    queryKey: ["/api/stories"],
+  });
+
+  const searchAllCitationsMutation = useMutation({
+    mutationFn: async () => {
+      const publishedStories = stories?.filter(story => 
+        story.status === 'published' && story.queries.length > 0
+      ) || [];
+      
+      if (publishedStories.length === 0) {
+        throw new Error("No published stories with queries found");
+      }
+
+      const results = [];
+      for (const story of publishedStories) {
+        const response = await apiRequest("POST", `/api/stories/${story.id}/search-citations`);
+        const data = await response.json();
+        results.push(data);
+      }
+      return results;
+    },
+    onSuccess: (results) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stories"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/citations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      
+      const totalCitations = results.reduce((sum, result) => sum + result.citations.length, 0);
+      const totalSearches = results.reduce((sum, result) => sum + result.summary.successfulSearches, 0);
+      
+      toast({
+        title: "Citation search completed",
+        description: `Found ${totalCitations} citations from ${totalSearches} searches across ${results.length} stories.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Search failed", 
+        description: error.message || "Failed to search for citations. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   return (
     <>
@@ -35,6 +85,8 @@ export default function QuickActions() {
           <Button
             variant="outline"
             className="w-full p-4 h-auto justify-start"
+            onClick={() => searchAllCitationsMutation.mutate()}
+            disabled={searchAllCitationsMutation.isPending || !stories?.some(s => s.status === 'published' && s.queries.length > 0)}
             data-testid="button-quick-search"
           >
             <div className="flex items-center space-x-3">
