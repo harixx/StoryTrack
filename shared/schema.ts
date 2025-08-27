@@ -45,6 +45,7 @@ export const citations = pgTable("citations", {
   query: text("query").notNull(),
   citationText: text("citation_text").notNull(),
   context: text("context"),
+  sourceUrls: text("source_urls").array().default(sql`ARRAY[]::text[]`),
   confidence: integer("confidence").default(0),
   foundAt: timestamp("found_at").defaultNow(),
 });

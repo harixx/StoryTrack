@@ -267,6 +267,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all source URLs from citations
+  app.get("/api/citations/source-urls", async (req, res) => {
+    try {
+      const citations = await storage.getRecentCitations(100);
+      const allSourceUrls = citations
+        .filter(citation => citation.sourceUrls && citation.sourceUrls.length > 0)
+        .map(citation => ({
+          id: citation.id,
+          storyId: citation.storyId,
+          platform: citation.platform,
+          query: citation.query,
+          sourceUrls: citation.sourceUrls,
+          citationText: citation.citationText,
+          confidence: citation.confidence,
+          foundAt: citation.foundAt,
+        }));
+      
+      res.json(allSourceUrls);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch source URLs" });
+    }
+  });
+
   // Search for citations endpoint
   app.post("/api/stories/:id/search-citations", async (req, res) => {
     try {
@@ -346,6 +369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               citationText: citationData.citationText || response.substring(0, 200),
               context: citationData.context,
               confidence: citationData.confidence,
+              sourceUrls: citationData.sourceUrls,
             });
 
             foundCitations.push(citation);

@@ -3,6 +3,7 @@ export interface CitationResult {
   confidence: number;
   citationText: string | null;
   context: string | null;
+  sourceUrls: string[];
 }
 
 export class CitationDetector {
@@ -44,6 +45,7 @@ export class CitationDetector {
           confidence: Math.round(maxConfidence),
           context: response.substring(0, 800),
           citationText: bestMatch.citationText || this.extractBestSentence(storyTitle, response),
+          sourceUrls: this.extractSourceUrls(response),
         };
       }
 
@@ -58,6 +60,7 @@ export class CitationDetector {
       confidence: 0,
       citationText: null,
       context: null,
+      sourceUrls: [],
     };
   }
 
@@ -71,10 +74,11 @@ export class CitationDetector {
         confidence: 90,
         citationText: title,
         context: response.substring(0, 300),
+        sourceUrls: this.extractSourceUrls(response),
       };
     }
 
-    return { cited: false, confidence: 0, citationText: null, context: null };
+    return { cited: false, confidence: 0, citationText: null, context: null, sourceUrls: [] };
   }
 
   private keywordDensityAnalysis(title: string, content: string, response: string): CitationResult {
@@ -106,6 +110,7 @@ export class CitationDetector {
       confidence: Math.min(totalConfidence, 85),
       citationText: this.extractBestSentence(title, response),
       context: response.substring(0, 400),
+      sourceUrls: this.extractSourceUrls(response),
     };
   }
 
@@ -131,6 +136,7 @@ export class CitationDetector {
       confidence,
       citationText: this.extractBestSentence(title, response),
       context: response.substring(0, 350),
+      sourceUrls: this.extractSourceUrls(response),
     };
   }
 
@@ -152,6 +158,7 @@ export class CitationDetector {
       confidence,
       citationText: this.extractBestSentence(entities.join(' '), response),
       context: response.substring(0, 400),
+      sourceUrls: this.extractSourceUrls(response),
     };
   }
 
@@ -217,6 +224,7 @@ export class CitationDetector {
       confidence: Math.round(confidence),
       citationText: this.extractBestSentence(title, response),
       context: response.substring(0, 300),
+      sourceUrls: this.extractSourceUrls(response),
     };
   }
   
@@ -267,6 +275,68 @@ export class CitationDetector {
     const end = Math.min(text.length, index + searchTerm.length + 100);
     
     return text.slice(start, end).trim();
+  }
+
+  private extractSourceUrls(response: string): string[] {
+    const urls: string[] = [];
+    
+    // Common URL patterns that ChatGPT might include
+    const urlPatterns = [
+      // Standard HTTP/HTTPS URLs
+      /https?:\/\/(?:[-\w.])+(?:[:\d]+)?(?:\/(?:[\w\/_.])*(?:\?(?:[\w&=%.])*)?(?:#(?:[\w.])*)?)?/gi,
+      // URLs in square brackets (common in citations)
+      /\[([^\]]*(?:https?:\/\/[^\]]+)[^\]]*)\]/gi,
+      // URLs in parentheses
+      /\(([^)]*(?:https?:\/\/[^)]+)[^)]*)\)/gi,
+      // News website patterns
+      /(?:cnn\.com|bbc\.com|reuters\.com|ap\.org|nytimes\.com|washingtonpost\.com|theguardian\.com|forbes\.com|bloomberg\.com|wsj\.com|npr\.org)\/[^\s<>"\[\]{}|\\^`]*/gi,
+      // Academic and research patterns
+      /(?:arxiv\.org|pubmed\.ncbi\.nlm\.nih\.gov|scholar\.google\.com|researchgate\.net|doi\.org)\/[^\s<>"\[\]{}|\\^`]*/gi,
+    ];
+
+    for (const pattern of urlPatterns) {
+      const matches = response.match(pattern);
+      if (matches) {
+        matches.forEach(match => {
+          // Clean up URLs that might be wrapped in brackets or parentheses
+          let cleanUrl = match;
+          if (match.startsWith('[') && match.endsWith(']')) {
+            cleanUrl = match.slice(1, -1);
+          } else if (match.startsWith('(') && match.endsWith(')')) {
+            cleanUrl = match.slice(1, -1);
+          }
+          
+          // Extract just the URL part if it's mixed with text
+          const urlMatch = cleanUrl.match(/(https?:\/\/[^\s<>"\[\]{}|\\^`]*)/i);
+          if (urlMatch) {
+            const url = urlMatch[1].replace(/[.,;:!?]*$/, ''); // Remove trailing punctuation
+            if (url && !urls.includes(url)) {
+              urls.push(url);
+            }
+          }
+        });
+      }
+    }
+
+    // Look for citations in common formats like "Source: URL" or "According to URL"
+    const citationPatterns = [
+      /(?:source|sources?|according to|from|via|see|ref|reference):?\s*(https?:\/\/[^\s<>"\[\]{}|\\^`]*)/gi,
+      /\b(?:available at|found at|read more at):?\s*(https?:\/\/[^\s<>"\[\]{}|\\^`]*)/gi,
+    ];
+
+    for (const pattern of citationPatterns) {
+      let match;
+      while ((match = pattern.exec(response)) !== null) {
+        if (match[1]) {
+          const url = match[1].replace(/[.,;:!?]*$/, ''); // Remove trailing punctuation
+          if (url && !urls.includes(url)) {
+            urls.push(url);
+          }
+        }
+      }
+    }
+
+    return urls.slice(0, 20); // Limit to 20 URLs max
   }
 }
 
