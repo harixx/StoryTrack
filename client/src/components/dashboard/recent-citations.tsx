@@ -83,6 +83,29 @@ export default function RecentCitations() {
                       "{citation.citationText}"
                     </p>
                   )}
+                  {citation.sourceUrls && citation.sourceUrls.length > 0 && (
+                    <div className="mt-1">
+                      <p className="text-xs text-slate-600 font-medium">Sources:</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {citation.sourceUrls.slice(0, 2).map((url, index) => (
+                          <a
+                            key={index}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:text-blue-800 truncate max-w-[200px] flex items-center"
+                            data-testid={`link-source-${citation.id}-${index}`}
+                          >
+                            <ExternalLink className="h-2 w-2 mr-1" />
+                            <span className="truncate">{new URL(url).hostname}</span>
+                          </a>
+                        ))}
+                        {citation.sourceUrls.length > 2 && (
+                          <span className="text-xs text-slate-400">+{citation.sourceUrls.length - 2} more</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <p className="text-xs text-slate-400 mt-1" data-testid={`citation-date-${citation.id}`}>
                     {new Date(citation.foundAt!).toLocaleDateString()}
                   </p>

@@ -101,6 +101,27 @@ export default function Citations() {
                         </div>
                       )}
                       
+                      {citation.sourceUrls && citation.sourceUrls.length > 0 && (
+                        <div className="mb-3">
+                          <h4 className="text-sm font-medium text-slate-900 mb-2">Source URLs from ChatGPT:</h4>
+                          <div className="space-y-1">
+                            {citation.sourceUrls.map((url, index) => (
+                              <a
+                                key={index}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                                data-testid={`link-source-${citation.id}-${index}`}
+                              >
+                                <ExternalLink className="h-3 w-3 mr-1" />
+                                <span className="truncate">{url}</span>
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {citation.context && (
                         <details className="text-sm">
                           <summary className="cursor-pointer text-slate-600 hover:text-slate-900">
