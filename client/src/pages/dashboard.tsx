@@ -1,7 +1,7 @@
 import Header from "@/components/layout/header";
-import StatsGrid from "../components/dashboard/stats-grid";
-import RecentCitations from "../components/dashboard/recent-citations";
-import QuickActions from "../components/dashboard/quick-actions";
+import EnhancedStatsGrid from "@/components/dashboard/enhanced-stats-grid";
+import RecentCitations from "@/components/dashboard/recent-citations";
+import QuickActions from "@/components/dashboard/quick-actions";
 import StoryTable from "@/components/stories/story-table";
 
 export default function Dashboard() {
@@ -15,7 +15,7 @@ export default function Dashboard() {
       />
       <main className="flex-1 p-6 overflow-y-auto">
         <div className="space-y-6">
-          <StatsGrid />
+          <EnhancedStatsGrid />
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">

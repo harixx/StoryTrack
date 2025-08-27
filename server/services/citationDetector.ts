@@ -1,58 +1,209 @@
+export interface CitationResult {
+  cited: boolean;
+  confidence: number;
+  citationText: string | null;
+  context: string | null;
+}
+
 export class CitationDetector {
-  detectCitation(storyTitle: string, storyContent: string, llmResponse: string): {
-    cited: boolean;
-    citationContext?: string;
-    confidence: number;
-  } {
-    const response = llmResponse.toLowerCase();
-    const title = storyTitle.toLowerCase();
-    const content = storyContent.toLowerCase();
-    
-    let confidence = 0;
-    let cited = false;
-    let citationContext = "";
-    
-    // Check for direct title mentions
-    if (response.includes(title)) {
-      cited = true;
-      confidence += 60;
-      citationContext = this.extractContext(llmResponse, storyTitle);
-    }
-    
-    // Check for key phrases from the story
-    const keyPhrases = this.extractKeyPhrases(storyContent);
-    const matchedPhrases: string[] = [];
-    
-    keyPhrases.forEach(phrase => {
-      if (response.includes(phrase.toLowerCase())) {
-        matchedPhrases.push(phrase);
-        confidence += Math.min(20, 40 / keyPhrases.length);
+  async detectCitation(
+    storyTitle: string,
+    storyContent: string,
+    query: string,
+    response: string
+  ): Promise<CitationResult> {
+    try {
+      // Enhanced citation detection with multiple strategies
+      const strategies = [
+        this.exactTitleMatch(storyTitle, response),
+        this.keywordDensityAnalysis(storyTitle, storyContent, response),
+        this.semanticSimilarity(storyTitle, storyContent, response),
+        this.entityMatch(storyContent, response),
+      ];
+
+      const results = await Promise.all(strategies);
+      const maxConfidence = Math.max(...results.map(r => r.confidence));
+      const bestMatch = results.find(r => r.confidence === maxConfidence);
+
+      if (bestMatch && maxConfidence > 25) {
+        return {
+          cited: true,
+          confidence: Math.round(maxConfidence),
+          context: response.substring(0, 800),
+          citationText: bestMatch.citationText || this.extractBestSentence(storyTitle, response),
+        };
       }
-    });
-    
-    // Check for company/entity mentions
-    const entities = this.extractEntities(storyContent);
-    entities.forEach(entity => {
-      if (response.includes(entity.toLowerCase())) {
-        confidence += 10;
-        if (!cited) {
-          cited = matchedPhrases.length > 0 || confidence > 30;
-          if (cited && !citationContext) {
-            citationContext = this.extractContext(llmResponse, entity);
-          }
-        }
-      }
-    });
-    
-    // Adjust confidence based on context quality
-    if (cited && citationContext.length > 50) {
-      confidence += 10;
+
+    } catch (error) {
+      console.error("Citation detection error:", error);
+      // Fallback to simple detection
+      return this.simpleDetection(storyTitle, storyContent, response);
     }
-    
+
     return {
-      cited,
-      citationContext: cited ? citationContext : undefined,
-      confidence: Math.min(100, Math.round(confidence))
+      cited: false,
+      confidence: 0,
+      citationText: null,
+      context: null,
+    };
+  }
+
+  private exactTitleMatch(title: string, response: string): CitationResult {
+    const titleLower = title.toLowerCase();
+    const responseLower = response.toLowerCase();
+
+    if (responseLower.includes(titleLower)) {
+      return {
+        cited: true,
+        confidence: 90,
+        citationText: title,
+        context: response.substring(0, 300),
+      };
+    }
+
+    return { cited: false, confidence: 0, citationText: null, context: null };
+  }
+
+  private keywordDensityAnalysis(title: string, content: string, response: string): CitationResult {
+    const titleWords = title.toLowerCase().split(' ').filter(word => word.length > 3);
+    const contentKeywords = this.extractKeywords(content);
+    const responseLower = response.toLowerCase();
+
+    let titleMatches = 0;
+    let keywordMatches = 0;
+
+    titleWords.forEach(word => {
+      if (responseLower.includes(word)) {
+        titleMatches++;
+      }
+    });
+
+    contentKeywords.forEach(keyword => {
+      if (responseLower.includes(keyword.toLowerCase())) {
+        keywordMatches++;
+      }
+    });
+
+    const titleScore = titleWords.length > 0 ? (titleMatches / titleWords.length) * 50 : 0;
+    const keywordScore = Math.min(keywordMatches * 8, 50);
+    const totalConfidence = titleScore + keywordScore;
+
+    return {
+      cited: totalConfidence > 25,
+      confidence: Math.min(totalConfidence, 85),
+      citationText: this.extractBestSentence(title, response),
+      context: response.substring(0, 400),
+    };
+  }
+
+  private semanticSimilarity(title: string, content: string, response: string): CitationResult {
+    const titleConcepts = this.extractConcepts(title);
+    const contentConcepts = this.extractConcepts(content);
+    const responseConcepts = this.extractConcepts(response);
+
+    let conceptMatches = 0;
+    const allConcepts = [...titleConcepts, ...contentConcepts];
+
+    responseConcepts.forEach(concept => {
+      if (allConcepts.some(c => c.toLowerCase().includes(concept.toLowerCase()) || 
+                              concept.toLowerCase().includes(c.toLowerCase()))) {
+        conceptMatches++;
+      }
+    });
+
+    const confidence = Math.min(conceptMatches * 15, 70);
+
+    return {
+      cited: confidence > 30,
+      confidence,
+      citationText: this.extractBestSentence(title, response),
+      context: response.substring(0, 350),
+    };
+  }
+
+  private entityMatch(content: string, response: string): CitationResult {
+    const entities = this.extractEntities(content);
+    const responseLower = response.toLowerCase();
+    let entityMatches = 0;
+
+    entities.forEach(entity => {
+      if (responseLower.includes(entity.toLowerCase())) {
+        entityMatches++;
+      }
+    });
+
+    const confidence = Math.min(entityMatches * 20, 75);
+
+    return {
+      cited: confidence > 25,
+      confidence,
+      citationText: this.extractBestSentence(entities.join(' '), response),
+      context: response.substring(0, 400),
+    };
+  }
+
+  private extractKeywords(content: string): string[] {
+    const words = content.toLowerCase().match(/\b\w{4,}\b/g) || [];
+    const stopWords = ['that', 'this', 'with', 'from', 'they', 'have', 'been', 'will', 'were', 'said', 'what', 'when', 'where', 'would', 'there', 'their'];
+    
+    return words
+      .filter(word => !stopWords.includes(word))
+      .filter((word, index, arr) => arr.indexOf(word) === index)
+      .slice(0, 15);
+  }
+
+  private extractConcepts(text: string): string[] {
+    const conceptPatterns = [
+      /\b(?:company|corporation|startup|business|firm|enterprise)\b/gi,
+      /\b(?:technology|software|platform|service|product|solution)\b/gi,
+      /\b(?:funding|investment|revenue|market|industry|sector)\b/gi,
+      /\b(?:CEO|founder|executive|president|director|manager)\b/gi,
+    ];
+
+    const concepts: string[] = [];
+    conceptPatterns.forEach(pattern => {
+      const matches = text.match(pattern);
+      if (matches) {
+        concepts.push(...matches);
+      }
+    });
+
+    return concepts.slice(0, 10);
+  }
+
+  private extractBestSentence(title: string, response: string): string | null {
+    const sentences = response.split(/[.!?]+/).filter(s => s.trim().length > 10);
+    const titleWords = title.toLowerCase().split(' ').filter(word => word.length > 3);
+
+    for (const sentence of sentences) {
+      const sentenceLower = sentence.toLowerCase();
+      const matches = titleWords.filter(word => sentenceLower.includes(word));
+      if (matches.length >= 2 || (matches.length === 1 && titleWords.length <= 2)) {
+        return sentence.trim().substring(0, 200);
+      }
+    }
+
+    return sentences[0]?.trim().substring(0, 200) || null;
+  }
+
+  private simpleDetection(title: string, content: string, response: string): CitationResult {
+    const titleWords = title.toLowerCase().split(' ');
+    const responseText = response.toLowerCase();
+
+    let matchedWords = 0;
+    titleWords.forEach(word => {
+      if (word.length > 3 && responseText.includes(word)) {
+        matchedWords++;
+      }
+    });
+
+    const confidence = titleWords.length > 0 ? (matchedWords / titleWords.length) * 60 : 0;
+
+    return {
+      cited: confidence > 30,
+      confidence: Math.round(confidence),
+      citationText: this.extractBestSentence(title, response),
+      context: response.substring(0, 300),
     };
   }
   

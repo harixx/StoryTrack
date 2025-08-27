@@ -181,7 +181,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Run citation search for a story
+  // Citations endpoints
+  app.get("/api/citations", async (req, res) => {
+    try {
+      const storyId = req.query.storyId as string;
+      const citations = storyId 
+        ? await storage.getCitationsByStoryId(storyId)
+        : await storage.getRecentCitations(50);
+      res.json(citations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch citations" });
+    }
+  });
+
+  // Search for citations endpoint
   app.post("/api/stories/:id/search-citations", async (req, res) => {
     try {
       const story = await storage.getStory(req.params.id);
@@ -189,70 +202,194 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Story not found" });
       }
 
-      const queries = await storage.getQueriesByStoryId(req.params.id);
-      const activeQueries = queries.filter(q => q.isActive);
-      
-      if (activeQueries.length === 0) {
-        return res.status(400).json({ error: "No active queries found for this story" });
+      const queries = await storage.getQueriesByStoryId(story.id);
+      if (queries.length === 0) {
+        // Generate queries if none exist
+        const generatedQueries = await queryGenerator.generateQueriesFromStory(
+          story.title,
+          story.content,
+          story.tags || []
+        );
+
+        // Save generated queries
+        await Promise.all(
+          generatedQueries.map(query => 
+            storage.createSearchQuery({
+              storyId: story.id,
+              query,
+              generatedBy: "ai",
+              isActive: true,
+            })
+          )
+        );
+        
+        // Refresh queries list
+        const updatedQueries = await storage.getQueriesByStoryId(story.id);
+        queries.push(...updatedQueries);
       }
 
-      console.log(`Starting citation search for ${activeQueries.length} queries`);
       const searchResults = [];
-      const citations = [];
       const foundCitations = [];
+      let successfulSearches = 0;
 
-      for (const query of activeQueries) {
+      // Process each query
+      for (const query of queries) {
         try {
-          const llmResponse = await searchLLMWithQuery(query.query);
+          // Search using OpenAI
+          const response = await searchLLMWithQuery(query.query);
           
-          const citationAnalysis = citationDetector.detectCitation(
-            story.title,
-            story.content,
-            llmResponse
-          );
-
+          // Create search result
           const searchResult = await storage.createSearchResult({
             queryId: query.id,
             storyId: story.id,
             platform: "openai",
-            response: llmResponse,
-            cited: citationAnalysis.cited,
-            citationContext: citationAnalysis.citationContext,
-            confidence: citationAnalysis.confidence,
+            response,
+            cited: false,
+            citationContext: null,
+            confidence: 0,
           });
+          
+          // Detect citations
+          const citationData = await citationDetector.detectCitation(
+            story.title,
+            story.content,
+            query.query,
+            response
+          );
 
-          searchResults.push(searchResult);
+          if (citationData.cited) {
+            // Update search result
+            searchResult.cited = true;
+            searchResult.citationContext = citationData.context;
+            searchResult.confidence = citationData.confidence;
 
-          if (citationAnalysis.cited) {
+            // Create citation record
             const citation = await storage.createCitation({
               storyId: story.id,
               searchResultId: searchResult.id,
               platform: "openai",
               query: query.query,
-              citationText: citationAnalysis.citationContext || "",
-              context: citationAnalysis.citationContext,
-              confidence: citationAnalysis.confidence,
+              citationText: citationData.citationText || response.substring(0, 200),
+              context: citationData.context,
+              confidence: citationData.confidence,
             });
+
             foundCitations.push(citation);
           }
+
+          searchResults.push(searchResult);
+          successfulSearches++;
+          
         } catch (error) {
           console.error(`Search failed for query "${query.query}":`, error);
+          // Continue with other queries even if one fails
         }
       }
 
       res.json({
-        searchResults,
         citations: foundCitations,
         summary: {
-          totalQueries: activeQueries.length,
-          successfulSearches: searchResults.length,
+          totalQueries: queries.length,
+          successfulSearches,
           citationsFound: foundCitations.length,
         }
       });
+
     } catch (error) {
-      res.status(500).json({ error: "Failed to run citation search" });
+      console.error("Citation search error:", error);
+      res.status(500).json({ 
+        error: "Failed to search for citations",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
+
+  // Export report endpoint
+  app.get("/api/export/report", async (req, res) => {
+    try {
+      const stories = await storage.getStoriesWithQueries();
+      const citations = await storage.getRecentCitations(100);
+      const stats = await storage.getDashboardStats();
+
+      const report = {
+        generatedAt: new Date().toISOString(),
+        summary: stats,
+        stories: stories,
+        citations: citations,
+      };
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', 'attachment; filename=citation-report.json');
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to generate report" });
+    }
+  });
+
+  // Test API connection endpoint
+  app.post("/api/test-connection", async (req, res) => {
+    try {
+      const { service } = req.body;
+      
+      if (service === "OpenAI API") {
+        if (!process.env.OPENAI_API_KEY) {
+          return res.json({ 
+            connected: false, 
+            message: "OpenAI API key not configured" 
+          });
+        }
+        
+        // Test OpenAI connection
+        try {
+          await searchLLMWithQuery("Test connection query");
+          res.json({ 
+            connected: true, 
+            message: "OpenAI API connected successfully" 
+          });
+        } catch (error) {
+          res.json({ 
+            connected: false, 
+            message: "OpenAI API connection failed: " + (error as Error).message 
+          });
+        }
+      } else if (service === "Database Connection") {
+        // Test database connection
+        try {
+          await storage.getDashboardStats();
+          res.json({ 
+            connected: true, 
+            message: "Database connected successfully" 
+          });
+        } catch (error) {
+          res.json({ 
+            connected: false, 
+            message: "Database connection failed: " + (error as Error).message 
+          });
+        }
+      } else {
+        res.status(400).json({ error: "Unknown service" });
+      }
+    } catch (error) {
+      res.status(500).json({ 
+        connected: false, 
+        message: "Connection test failed" 
+      });
+    }
+  });
+
+  app.delete("/api/stories/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteStory(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Query not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete query" });
+    }
+  });
+
+
 
   // Citations endpoints
   app.get("/api/citations", async (req, res) => {
