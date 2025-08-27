@@ -257,7 +257,7 @@ export default function AddStoryModal({ open, onOpenChange }: AddStoryModalProps
                   variant="outline"
                   size="sm"
                   onClick={handleGenerateQueries}
-                  disabled={isGeneratingQueries || !title.trim() || !content.trim()}
+                  disabled={isGeneratingQueries || !form.getValues("title").trim() || !form.getValues("content").trim()}
                   data-testid="button-generate-queries"
                 >
                   {isGeneratingQueries ? (

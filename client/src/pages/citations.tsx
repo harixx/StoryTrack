@@ -43,7 +43,10 @@ export default function Citations() {
             description="Run citation searches on your published stories to discover where your content is being referenced by AI systems."
             action={{
               label: "Search for Citations",
-              onClick: () => window.location.href = "/stories"
+              onClick: () => {
+                window.history.pushState({}, '', '/stories');
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              }
             }}
           />
         ) : (

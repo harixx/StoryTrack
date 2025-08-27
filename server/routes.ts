@@ -377,55 +377,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/stories/:id", async (req, res) => {
-    try {
-      const deleted = await storage.deleteStory(req.params.id);
-      if (!deleted) {
-        return res.status(404).json({ error: "Query not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete query" });
-    }
-  });
-
-
-
-  // Citations endpoints
-  app.get("/api/citations", async (req, res) => {
-    try {
-      const storyId = req.query.storyId as string;
-      const citations = storyId 
-        ? await storage.getCitationsByStoryId(storyId)
-        : await storage.getRecentCitations(100);
-      res.json(citations);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch citations" });
-    }
-  });
-
-
-  // Export report
-  app.get("/api/export/report", async (req, res) => {
-    try {
-      const stories = await storage.getStoriesWithQueries();
-      const citations = await storage.getRecentCitations(1000);
-      const stats = await storage.getDashboardStats();
-
-      const report = {
-        generatedAt: new Date().toISOString(),
-        stats,
-        stories,
-        citations,
-      };
-
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Content-Disposition', `attachment; filename="citation-report-${new Date().toISOString().split('T')[0]}.json"`);
-      res.json(report);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to generate report" });
-    }
-  });
 
   const httpServer = createServer(app);
   return httpServer;
