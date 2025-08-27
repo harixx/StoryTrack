@@ -78,9 +78,9 @@ export default function RecentCitations() {
                   <p className="text-xs text-slate-600 truncate mb-1" data-testid={`citation-query-${citation.id}`}>
                     "{citation.query}"
                   </p>
-                  {citation.citationText && (
+                  {citation.mentionText && (
                     <p className="text-xs text-slate-500 line-clamp-2" data-testid={`citation-text-${citation.id}`}>
-                      "{citation.citationText}"
+                      "{citation.mentionText}"
                     </p>
                   )}
                   {citation.sourceUrls && citation.sourceUrls.length > 0 && (

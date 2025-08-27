@@ -53,11 +53,12 @@ export const brandMentions = pgTable("brand_mentions", {
 });
 
 // Insert schemas - Keep legacy story schema for compatibility
-export const insertStorySchema = createInsertSchema(brands).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
+export const insertStorySchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  content: z.string().min(1, "Content is required"), 
+  category: z.string().optional().default(""),
+  priority: z.enum(["low", "medium", "high"]).default("medium"),
+  status: z.enum(["draft", "published", "tracking"]).default("draft"),
   tags: z.union([
     z.array(z.string()),
     z.string().transform((str) => str.split(',').map(tag => tag.trim()).filter(Boolean))
@@ -129,9 +130,10 @@ export type BrandWithQueries = Brand & {
 export type DashboardStats = {
   totalStories: number;
   citations: number;
-  totalBrands: number;
-  brandMentions: number;
   queries: number;
   citationRate: number;
-  mentionRate: number;
+  totalQueries?: number;
+  activeQueries?: number;
+  manualQueries?: number;
+  recentQueries?: any[];
 };

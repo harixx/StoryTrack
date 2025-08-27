@@ -246,8 +246,8 @@ export class MemStorage implements IStorage {
     const citations = this.citations.size;
     const queries = this.searchQueries.size;
     const searchResults = Array.from(this.searchResults.values());
-    const citedResults = searchResults.filter(r => r.cited);
-    const citationRate = searchResults.length > 0 ? Math.round((citedResults.length / searchResults.length) * 100) : 0;
+    const mentionedResults = searchResults.filter(r => r.mentioned);
+    const citationRate = searchResults.length > 0 ? Math.round((mentionedResults.length / searchResults.length) * 100) : 0;
 
     return {
       totalStories,

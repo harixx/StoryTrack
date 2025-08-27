@@ -258,6 +258,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export report endpoint
+  app.get("/api/export/report", async (req, res) => {
+    try {
+      const stories = await storage.getStoriesWithQueries();
+      const citations = await storage.getRecentCitations(100);
+      const queries = await storage.getAllQueries();
+      
+      const report = {
+        generatedAt: new Date().toISOString(),
+        summary: {
+          totalStories: stories.length,
+          totalQueries: queries.length,
+          totalCitations: citations.length,
+        },
+        stories: stories,
+        citations: citations,
+        queries: queries,
+      };
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', 'attachment; filename=citation-report.json');
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to generate report" });
+    }
+  });
+
   const server = createServer(app);
   return server;
 }
