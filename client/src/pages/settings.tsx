@@ -244,7 +244,7 @@ export default function Settings() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-slate-600">Storage:</span>
-                  <span className="ml-2 font-medium">In-Memory (Development)</span>
+                  <span className="ml-2 font-medium">PostgreSQL Database</span>
                 </div>
                 <div>
                   <span className="text-slate-600">Citation Detection:</span>

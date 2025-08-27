@@ -297,8 +297,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         
         // Refresh queries list
-        const updatedQueries = await storage.getQueriesByStoryId(story.id);
-        queries.push(...updatedQueries);
+        const refreshedQueries = await storage.getQueriesByStoryId(story.id);
+        queries.length = 0; // Clear existing array
+        queries.push(...refreshedQueries);
       }
 
       const searchResults = [];

@@ -21,9 +21,22 @@ export class CitationDetector {
         this.entityMatch(storyContent, response),
       ];
 
-      const results = await Promise.all(strategies);
-      const maxConfidence = Math.max(...results.map(r => r.confidence));
-      const bestMatch = results.find(r => r.confidence === maxConfidence);
+      // Execute strategies with early exit for performance
+      let bestMatch: CitationResult | null = null;
+      let maxConfidence = 0;
+
+      for (const strategy of strategies) {
+        const result = await strategy;
+        if (result.confidence > maxConfidence) {
+          maxConfidence = result.confidence;
+          bestMatch = result;
+          
+          // Early exit if we have high confidence
+          if (maxConfidence >= 80) {
+            break;
+          }
+        }
+      }
 
       if (bestMatch && maxConfidence > 25) {
         return {

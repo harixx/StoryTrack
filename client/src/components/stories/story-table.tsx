@@ -187,7 +187,7 @@ export default function StoryTable() {
                           variant={story.citationCount > 0 ? 'default' : 'secondary'}
                           data-testid={`badge-rate-${story.id}`}
                         >
-                          {story.queries.length > 0 ? Math.round((story.citationCount / story.queries.length) * 100) : 0}%
+                          {story.lastSearched ? `${Math.round((story.citationCount / Math.max(story.queries.length, 1)) * 100)}%` : 'N/A'}
                         </Badge>
                       )}
                     </div>
@@ -249,12 +249,24 @@ export default function StoryTable() {
               <h3 className="text-lg font-medium text-slate-900 mb-2">
                 {searchTerm || statusFilter !== "all" ? "No matching stories" : "No stories yet"}
               </h3>
-              <p className="text-slate-500">
+              <p className="text-slate-500 mb-4">
                 {searchTerm || statusFilter !== "all" 
                   ? "Try adjusting your search or filter criteria." 
                   : "Start by adding your first story to track citations."
                 }
               </p>
+              {!searchTerm && statusFilter === "all" && (
+                <Button 
+                  onClick={() => {
+                    const addButton = document.querySelector('[data-testid="button-add-story"]') as HTMLElement;
+                    if (addButton) addButton.click();
+                  }}
+                  variant="outline"
+                >
+                  <Newspaper className="h-4 w-4 mr-2" />
+                  Add Your First Story
+                </Button>
+              )}
             </div>
           )}
         </div>

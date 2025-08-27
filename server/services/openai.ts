@@ -17,6 +17,11 @@ export async function searchLLMWithQuery(query: string): Promise<string> {
     throw new Error("OpenAI API is not configured. Please provide OPENAI_API_KEY environment variable.");
   }
   
+  // Validate API key is still working
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OpenAI API key is missing from environment variables.");
+  }
+  
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -38,6 +43,11 @@ export async function searchLLMWithQuery(query: string): Promise<string> {
 export async function generateSearchQueries(storyTitle: string, storyContent: string, tags: string[]): Promise<string[]> {
   if (!openai) {
     throw new Error("OpenAI API is not configured. Please provide OPENAI_API_KEY environment variable.");
+  }
+  
+  // Validate API key is still working
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OpenAI API key is missing from environment variables.");
   }
   
   try {

@@ -7,13 +7,25 @@ const app = express();
 
 // CORS Configuration
 app.use(cors({
-  origin: process.env.NODE_ENV === 'development' ? true : ["https://*.replit.app", "https://*.replit.dev"],
+  origin: process.env.NODE_ENV === 'development' 
+    ? ["http://localhost:5000", "http://127.0.0.1:5000", "https://*.replit.dev"]
+    : ["https://*.replit.app", "https://*.replit.dev"],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-app.use(express.json({ limit: '10mb' }));
+// Input validation and sanitization middleware
+app.use(express.json({ 
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    try {
+      JSON.parse(buf.toString());
+    } catch (e) {
+      throw new Error('Invalid JSON format');
+    }
+  }
+}));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 app.use((req, res, next) => {
@@ -52,9 +64,15 @@ app.use((req, res, next) => {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
+    
+    // Log error securely without exposing to client
+    console.error("Server error:", {
+      status,
+      message: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
 
     res.status(status).json({ message });
-    throw err;
   });
 
   // importantly only setup vite in development and after

@@ -74,13 +74,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteStory(id: string): Promise<boolean> {
-    // Delete related records first
-    await db.delete(citations).where(eq(citations.storyId, id));
-    await db.delete(searchResults).where(eq(searchResults.storyId, id));
-    await db.delete(searchQueries).where(eq(searchQueries.storyId, id));
-    
-    const result = await db.delete(stories).where(eq(stories.id, id));
-    return result.length > 0;
+    try {
+      // Delete related records first (this should be handled by CASCADE in production)
+      await db.delete(citations).where(eq(citations.storyId, id));
+      await db.delete(searchResults).where(eq(searchResults.storyId, id));
+      await db.delete(searchQueries).where(eq(searchQueries.storyId, id));
+      
+      const result = await db.delete(stories).where(eq(stories.id, id));
+      return result.count > 0;
+    } catch (error) {
+      console.error("Error deleting story:", error);
+      return false;
+    }
   }
 
   // Search Queries
@@ -108,15 +113,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteSearchQuery(id: string): Promise<boolean> {
-    // Delete related records first
-    const relatedResults = await db.select({ id: searchResults.id }).from(searchResults).where(eq(searchResults.queryId, id));
-    for (const result of relatedResults) {
-      await db.delete(citations).where(eq(citations.searchResultId, result.id));
+    try {
+      // Delete related records first (this should be handled by CASCADE in production)
+      const relatedResults = await db.select({ id: searchResults.id }).from(searchResults).where(eq(searchResults.queryId, id));
+      for (const result of relatedResults) {
+        await db.delete(citations).where(eq(citations.searchResultId, result.id));
+      }
+      await db.delete(searchResults).where(eq(searchResults.queryId, id));
+      
+      const result = await db.delete(searchQueries).where(eq(searchQueries.id, id));
+      return result.count > 0;
+    } catch (error) {
+      console.error("Error deleting search query:", error);
+      return false;
     }
-    await db.delete(searchResults).where(eq(searchResults.queryId, id));
-    
-    const result = await db.delete(searchQueries).where(eq(searchQueries.id, id));
-    return result.length > 0;
   }
 
   // Search Results
