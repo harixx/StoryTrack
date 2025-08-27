@@ -28,7 +28,9 @@ export async function searchLLMWithQuery(query: string): Promise<string> {
       messages: [
         {
           role: "user",
-          content: query,
+          content: `${query}
+
+Please provide specific sources, URLs, or references where this information can be verified if available. Include links in your response using formats like "Source: https://..." or "According to https://..." or "Read more: https://...".`,
         }
       ],
       max_completion_tokens: 1000,

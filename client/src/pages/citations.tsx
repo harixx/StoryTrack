@@ -101,7 +101,7 @@ export default function Citations() {
                         </div>
                       )}
                       
-                      {citation.sourceUrls && citation.sourceUrls.length > 0 && (
+                      {citation.sourceUrls && citation.sourceUrls.length > 0 ? (
                         <div className="mb-3">
                           <h4 className="text-sm font-medium text-slate-900 mb-2">Source URLs from ChatGPT:</h4>
                           <div className="space-y-1">
@@ -118,6 +118,19 @@ export default function Citations() {
                                 <span className="truncate">{url}</span>
                               </a>
                             ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-start space-x-2">
+                            <ExternalLink className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <h4 className="text-sm font-medium text-blue-900 mb-1">Source URLs</h4>
+                              <p className="text-xs text-blue-700">
+                                This citation was found but ChatGPT didn't provide source URLs in its response. 
+                                The system is designed to capture URLs when ChatGPT includes them (like when using web-browsing features).
+                              </p>
+                            </div>
                           </div>
                         </div>
                       )}
