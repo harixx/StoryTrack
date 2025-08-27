@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { brands, searchQueries, searchResults, brandMentions, type Brand, type InsertBrand, type SearchQuery, type InsertSearchQuery, type SearchResult, type InsertSearchResult, type BrandMention, type InsertBrandMention, type BrandWithQueries, type DashboardStats } from "@shared/schema";
+import { brands, searchQueries, searchResults, brandMentions, type Brand, type InsertBrand, type SearchQuery, type InsertSearchQuery, type SearchResult, type InsertSearchResult, type BrandMention, type InsertBrandMention, type BrandWithQueries, type DashboardStats, type Story, type InsertStory, type Citation, type InsertCitation, type StoryWithQueries } from "@shared/schema";
 import type { IStorage } from "./storage";
 import { eq, desc, count } from "drizzle-orm";
 
@@ -14,7 +14,7 @@ const db = drizzle(client);
 export class DatabaseStorage implements IStorage {
   // Stories
   async getStory(id: string): Promise<Story | undefined> {
-    const result = await db.select().from(stories).where(eq(stories.id, id)).limit(1);
+    const result = await db.select().from(brands).where(eq(brands.id, id)).limit(1);
     return result[0];
   }
 
@@ -34,8 +34,8 @@ export class DatabaseStorage implements IStorage {
       const storiesWithQueries = await Promise.all(
         allStories.map(async (story) => {
           const queries = await this.getQueriesByStoryId(story.id);
-          const citationCountResult = await db.select({ count: count() }).from(citations).where(eq(citations.storyId, story.id));
-          const searchResultsForStory = await db.select().from(searchResults).where(eq(searchResults.storyId, story.id)).orderBy(desc(searchResults.searchedAt)).limit(1);
+          const citationCountResult = await db.select({ count: count() }).from(brandMentions).where(eq(brandMentions.brandId, story.id));
+          const searchResultsForStory = await db.select().from(searchResults).where(eq(searchResults.brandId, story.id)).orderBy(desc(searchResults.searchedAt)).limit(1);
           
           return {
             ...story,
@@ -53,34 +53,42 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createStory(story: InsertStory): Promise<Story> {
-    const result = await db.insert(stories).values({
-      ...story,
-      publishedAt: story.status === 'published' ? new Date() : null,
+  async createStory(story: any): Promise<Story> {
+    const result = await db.insert(brands).values({
+      name: story.name || story.title || '',
+      description: story.description || story.content || '', 
+      industry: story.industry || story.category || '',
+      priority: story.priority || 'medium',
+      status: story.status || 'draft',
+      keywords: story.keywords || story.tags || []
     }).returning();
-    return result[0];
+    return result[0] as Story;
   }
 
-  async updateStory(id: string, story: Partial<InsertStory>): Promise<Story | undefined> {
-    const result = await db.update(stories)
+  async updateStory(id: string, story: any): Promise<Story | undefined> {
+    const result = await db.update(brands)
       .set({
-        ...story,
-        updatedAt: new Date(),
-        publishedAt: story.status === 'published' ? new Date() : undefined,
+        name: story.name || story.title,
+        description: story.description || story.content,
+        industry: story.industry || story.category,
+        priority: story.priority,
+        status: story.status,
+        keywords: story.keywords || story.tags,
+        updatedAt: new Date()
       })
-      .where(eq(stories.id, id))
+      .where(eq(brands.id, id))
       .returning();
-    return result[0];
+    return result[0] as Story;
   }
 
   async deleteStory(id: string): Promise<boolean> {
     try {
       // Delete related records first (this should be handled by CASCADE in production)
-      await db.delete(citations).where(eq(citations.storyId, id));
-      await db.delete(searchResults).where(eq(searchResults.storyId, id));
-      await db.delete(searchQueries).where(eq(searchQueries.storyId, id));
+      await db.delete(brandMentions).where(eq(brandMentions.brandId, id));
+      await db.delete(searchResults).where(eq(searchResults.brandId, id));
+      await db.delete(searchQueries).where(eq(searchQueries.brandId, id));
       
-      const result = await db.delete(stories).where(eq(stories.id, id));
+      const result = await db.delete(brands).where(eq(brands.id, id));
       return result.count > 0;
     } catch (error) {
       console.error("Error deleting story:", error);
@@ -95,7 +103,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getQueriesByStoryId(storyId: string): Promise<SearchQuery[]> {
-    return await db.select().from(searchQueries).where(eq(searchQueries.storyId, storyId)).orderBy(desc(searchQueries.createdAt));
+    return await db.select().from(searchQueries).where(eq(searchQueries.brandId, storyId)).orderBy(desc(searchQueries.createdAt));
   }
 
   async getAllQueries(): Promise<SearchQuery[]> {

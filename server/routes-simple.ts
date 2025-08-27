@@ -195,17 +195,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/stories", async (req, res) => {
     try {
       const storyData = {
-        name: req.body.title,
-        description: req.body.content,
-        industry: req.body.category,
+        name: req.body.title || req.body.name || '',
+        description: req.body.content || req.body.description || '',
+        industry: req.body.category || req.body.industry || '',
         priority: req.body.priority || 'medium',
         status: req.body.status || 'draft',
-        keywords: req.body.tags || []
+        keywords: req.body.tags || req.body.keywords || []
       };
+      
+      console.log("Creating story with data:", storyData);
       const story = await storage.createStory(storyData);
       res.status(201).json(story);
     } catch (error) {
-      res.status(500).json({ error: "Failed to create story" });
+      console.error("Story creation error:", error);
+      res.status(500).json({ 
+        error: "Failed to create story", 
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
@@ -236,6 +242,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete story" });
+    }
+  });
+
+  // Generate queries for a specific story
+  app.post("/api/stories/:id/queries/generate", async (req, res) => {
+    try {
+      const storyId = req.params.id;
+      const story = await storage.getStory(storyId);
+      
+      if (!story) {
+        return res.status(404).json({ error: "Story not found" });
+      }
+      
+      const { count = 5 } = req.body;
+      
+      // Import the query generation function
+      const { generateBrandMentionQueries } = await import('../server/services/openai.js');
+      
+      // Generate queries using the story data
+      const generatedQueries = await generateBrandMentionQueries(
+        story.name, 
+        story.keywords || [], 
+        story.industry
+      );
+      
+      // Take the requested number of queries
+      const selectedQueries = generatedQueries.slice(0, Math.max(1, Math.min(count, 12)));
+      
+      // Create search query records in the database
+      const createdQueries = await Promise.all(
+        selectedQueries.map(async (queryText) => {
+          return await storage.createSearchQuery({
+            query: queryText,
+            queryType: "brand_mention",
+            generatedBy: "ai",
+            brandId: storyId,
+            isActive: true
+          });
+        })
+      );
+      
+      res.status(201).json({
+        story: {
+          id: story.id,
+          name: story.name,
+          keywords: story.keywords,
+          industry: story.industry
+        },
+        generatedQueries: createdQueries,
+        count: createdQueries.length
+      });
+    } catch (error) {
+      console.error("Query generation error:", error);
+      res.status(500).json({ 
+        error: "Failed to generate queries", 
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Get queries for a specific story
+  app.get("/api/stories/:id/queries", async (req, res) => {
+    try {
+      const queries = await storage.getQueriesByStoryId(req.params.id);
+      res.json(queries);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch story queries" });
     }
   });
 

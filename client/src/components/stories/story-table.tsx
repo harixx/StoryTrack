@@ -72,8 +72,8 @@ export default function StoryTable() {
   });
 
   const filteredStories = stories?.filter(story => {
-    const matchesSearch = story.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         story.content.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (story.title || story.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (story.content || story.description || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || story.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
