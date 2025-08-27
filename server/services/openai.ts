@@ -42,7 +42,7 @@ Please provide specific sources, URLs, or references where this information can 
   }
 }
 
-export async function generateSearchQueries(storyTitle: string, storyContent: string, tags: string[]): Promise<string[]> {
+export async function generateBrandMentionQueries(brandName: string, keywords: string[], industry?: string): Promise<string[]> {
   if (!openai) {
     throw new Error("OpenAI API is not configured. Please provide OPENAI_API_KEY environment variable.");
   }
@@ -53,19 +53,25 @@ export async function generateSearchQueries(storyTitle: string, storyContent: st
   }
   
   try {
-    const prompt = `Based on the following news story, generate 5-8 relevant search queries that people might ask a large language model when looking for information related to this story's topic. The queries should be natural questions or search terms that would likely result in this story being mentioned as a relevant source.
+    const prompt = `Generate 8-12 diverse search queries to find mentions of the brand "${brandName}" across the web. The queries should be designed to discover when this brand is mentioned, cited, or discussed by AI systems like ChatGPT.
 
-Story Title: ${storyTitle}
+Brand Name: ${brandName}
+Keywords: ${keywords.join(", ")}
+Industry: ${industry || "Not specified"}
 
-Story Content: ${storyContent}
+Generate queries that would help discover:
+1. Direct brand mentions and discussions
+2. Industry news that might reference the brand
+3. Competitor comparisons that include the brand
+4. Product/service reviews and mentions
+5. Recent news, announcements, or developments
+6. Expert opinions or analysis mentioning the brand
 
-Tags: ${tags.join(", ")}
-
-Generate queries that are:
-1. Natural and conversational
-2. Likely to be asked by real users
-3. Related to the main topics and themes of the story
-4. Varied in specificity (some broad, some specific)
+Each query should be:
+- Natural and conversational (as a real user would ask)
+- Likely to generate responses that mention ${brandName}
+- Varied in approach (news, comparisons, reviews, industry discussions)
+- Specific enough to be relevant but broad enough to capture various mention contexts
 
 Respond with a JSON object containing an array of query strings: { "queries": ["query1", "query2", ...] }`;
 
@@ -74,7 +80,7 @@ Respond with a JSON object containing an array of query strings: { "queries": ["
       messages: [
         {
           role: "system",
-          content: "You are an expert at generating search queries that people would naturally ask when looking for information. Generate realistic, varied queries that would lead someone to find the given news story. Always respond with a JSON object containing an array of query strings."
+          content: "You are an expert at generating search queries for brand monitoring and PR tracking. Generate realistic, varied queries that would help discover mentions of a specific brand across different contexts. Always respond with a JSON object containing an array of query strings."
         },
         {
           role: "user",
@@ -84,7 +90,7 @@ Respond with a JSON object containing an array of query strings: { "queries": ["
     });
 
     const content = response.choices[0].message.content || "";
-    console.log("OpenAI response:", content);
+    console.log("OpenAI brand query response:", content);
     
     // Try to extract JSON from the response
     try {
@@ -95,10 +101,10 @@ Respond with a JSON object containing an array of query strings: { "queries": ["
       const lines = content.split('\n').filter(line => 
         line.trim() && (line.includes('?') || line.includes('how') || line.includes('what') || line.includes('when'))
       );
-      return lines.slice(0, 5).map(line => line.trim().replace(/^[-*•]\s*/, ''));
+      return lines.slice(0, 8).map(line => line.trim().replace(/^[-*•]\s*/, ''));
     }
   } catch (error) {
-    console.error("OpenAI query generation error:", error);
-    throw new Error(`Failed to generate search queries: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error("OpenAI brand query generation error:", error);
+    throw new Error(`Failed to generate brand mention queries: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

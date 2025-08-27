@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { stories, searchQueries, searchResults, citations, type Story, type InsertStory, type SearchQuery, type InsertSearchQuery, type SearchResult, type InsertSearchResult, type Citation, type InsertCitation, type StoryWithQueries, type DashboardStats } from "@shared/schema";
+import { brands, searchQueries, searchResults, brandMentions, type Brand, type InsertBrand, type SearchQuery, type InsertSearchQuery, type SearchResult, type InsertSearchResult, type BrandMention, type InsertBrandMention, type BrandWithQueries, type DashboardStats } from "@shared/schema";
 import type { IStorage } from "./storage";
 import { eq, desc, count } from "drizzle-orm";
 
@@ -20,7 +20,7 @@ export class DatabaseStorage implements IStorage {
 
   async getStories(): Promise<Story[]> {
     try {
-      return await db.select().from(stories).orderBy(desc(stories.createdAt));
+      return await db.select().from(brands).orderBy(desc(brands.createdAt));
     } catch (error) {
       console.error("Error in getStories:", error);
       return [];
@@ -160,7 +160,7 @@ export class DatabaseStorage implements IStorage {
 
   async getRecentCitations(limit: number = 10): Promise<Citation[]> {
     try {
-      return await db.select().from(citations).orderBy(desc(citations.foundAt)).limit(limit);
+      return await db.select().from(brandMentions).orderBy(desc(brandMentions.foundAt)).limit(limit);
     } catch (error) {
       console.error("Error in getRecentCitations:", error);
       return [];

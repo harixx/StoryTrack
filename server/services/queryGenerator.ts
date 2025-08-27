@@ -1,4 +1,4 @@
-import { generateSearchQueries } from "./openai";
+import { generateBrandMentionQueries } from "./openai";
 
 export class QueryGenerator {
   async generateQueriesFromStory(title: string, content: string, tags: string[]): Promise<string[]> {

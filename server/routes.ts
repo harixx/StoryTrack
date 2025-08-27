@@ -3,8 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertStorySchema, insertSearchQuerySchema } from "@shared/schema";
 import { queryGenerator } from "./services/queryGenerator";
-import { searchLLMWithQuery, generateSearchQueries } from "./services/openai";
-import { citationDetector } from "./services/citationDetector";
+import { searchLLMWithQuery, generateBrandMentionQueries } from "./services/openai";
+// import { citationDetector } from "./services/citationDetector";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   

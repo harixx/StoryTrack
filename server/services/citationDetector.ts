@@ -1,29 +1,31 @@
-export interface CitationResult {
-  cited: boolean;
+export interface BrandMentionResult {
+  mentioned: boolean;
   confidence: number;
-  citationText: string | null;
+  mentionText: string | null;
   context: string | null;
   sourceUrls: string[];
+  sentiment: 'positive' | 'negative' | 'neutral';
+  mentionType: 'direct' | 'indirect' | 'competitor_comparison';
 }
 
-export class CitationDetector {
-  async detectCitation(
-    storyTitle: string,
-    storyContent: string,
+export class BrandMentionDetector {
+  async detectBrandMention(
+    brandName: string,
+    keywords: string[],
     query: string,
     response: string
-  ): Promise<CitationResult> {
+  ): Promise<BrandMentionResult> {
     try {
-      // Enhanced citation detection with multiple strategies
+      // Enhanced brand mention detection with multiple strategies
       const strategies = [
-        this.exactTitleMatch(storyTitle, response),
-        this.keywordDensityAnalysis(storyTitle, storyContent, response),
-        this.semanticSimilarity(storyTitle, storyContent, response),
-        this.entityMatch(storyContent, response),
+        this.exactBrandMatch(brandName, response),
+        this.keywordDensityAnalysis(brandName, keywords, response),
+        this.contextualMentionAnalysis(brandName, keywords, response),
+        this.competitorComparisonAnalysis(brandName, response),
       ];
 
       // Execute strategies with early exit for performance
-      let bestMatch: CitationResult | null = null;
+      let bestMatch: BrandMentionResult | null = null;
       let maxConfidence = 0;
 
       for (const strategy of strategies) {
@@ -40,27 +42,34 @@ export class CitationDetector {
       }
 
       if (bestMatch && maxConfidence > 25) {
+        const sentiment = this.analyzeSentiment(brandName, response);
+        const mentionType = this.determineMentionType(brandName, response);
+        
         return {
-          cited: true,
+          mentioned: true,
           confidence: Math.round(maxConfidence),
           context: response.substring(0, 800),
-          citationText: bestMatch.citationText || this.extractBestSentence(storyTitle, response),
+          mentionText: bestMatch.mentionText || this.extractBestMention(brandName, response),
           sourceUrls: this.extractSourceUrls(response),
+          sentiment,
+          mentionType,
         };
       }
 
     } catch (error) {
       console.error("Citation detection error:", error);
       // Fallback to simple detection
-      return this.simpleDetection(storyTitle, storyContent, response);
+      return this.simpleBrandDetection(brandName, keywords, response);
     }
 
     return {
-      cited: false,
+      mentioned: false,
       confidence: 0,
-      citationText: null,
+      mentionText: null,
       context: null,
       sourceUrls: [],
+      sentiment: 'neutral',
+      mentionType: 'direct',
     };
   }
 
