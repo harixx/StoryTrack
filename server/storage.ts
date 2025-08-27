@@ -136,7 +136,7 @@ export class MemStorage implements IStorage {
   }
 
   async getQueriesByStoryId(storyId: string): Promise<SearchQuery[]> {
-    return Array.from(this.searchQueries.values()).filter(q => q.storyId === storyId);
+    return Array.from(this.searchQueries.values()).filter(q => q.brandId === storyId);
   }
 
   async getAllQueries(): Promise<SearchQuery[]> {
@@ -150,7 +150,8 @@ export class MemStorage implements IStorage {
     const query: SearchQuery = {
       ...insertQuery,
       id,
-      storyId: insertQuery.storyId || null,
+      brandId: insertQuery.brandId || null,
+      queryType: insertQuery.queryType || 'brand_mention',
       generatedBy: insertQuery.generatedBy || 'manual',
       isActive: insertQuery.isActive ?? true,
       createdAt: new Date(),
@@ -182,7 +183,7 @@ export class MemStorage implements IStorage {
   }
 
   async getResultsByStoryId(storyId: string): Promise<SearchResult[]> {
-    return Array.from(this.searchResults.values()).filter(r => r.storyId === storyId);
+    return Array.from(this.searchResults.values()).filter(r => r.brandId === storyId);
   }
 
   async createSearchResult(insertResult: InsertSearchResult): Promise<SearchResult> {
@@ -190,10 +191,10 @@ export class MemStorage implements IStorage {
     const result: SearchResult = {
       ...insertResult,
       id,
-      storyId: insertResult.storyId || null,
+      brandId: insertResult.brandId || null,
       queryId: insertResult.queryId || null,
-      cited: insertResult.cited ?? false,
-      citationContext: insertResult.citationContext || null,
+      mentioned: insertResult.mentioned ?? false,
+      mentionContext: insertResult.mentionContext || null,
       confidence: insertResult.confidence ?? 0,
       searchedAt: new Date(),
     };
@@ -207,7 +208,7 @@ export class MemStorage implements IStorage {
   }
 
   async getCitationsByStoryId(storyId: string): Promise<Citation[]> {
-    return Array.from(this.citations.values()).filter(c => c.storyId === storyId);
+    return Array.from(this.citations.values()).filter(c => c.brandId === storyId);
   }
 
   async getRecentCitations(limit: number = 10): Promise<Citation[]> {

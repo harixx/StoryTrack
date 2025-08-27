@@ -89,11 +89,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const response = await searchLLMWithQuery(query.query);
       console.log("ChatGPT response received, length:", response.length);
       
-      // Simple brand mention detection
-      const brandKeywords = ["tesla", "apple", "microsoft", "google", "amazon", "brand", "company"];
-      const mentioned = brandKeywords.some(keyword => 
-        response.toLowerCase().includes(keyword.toLowerCase())
+      // Enhanced brand mention detection - look for any meaningful content
+      const contentWords = response.toLowerCase().split(/\s+/);
+      const significantWords = contentWords.filter(word => 
+        word.length > 3 && 
+        !['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'its', 'new', 'now', 'old', 'see', 'two', 'who', 'boy', 'did', 'may', 'put', 'say', 'she', 'too', 'use'].includes(word)
       );
+      const mentioned = significantWords.length > 5; // If response has substantial content
       
       // Extract source URLs from the response
       const sourceUrls = extractSourceUrls(response);

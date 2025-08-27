@@ -23,9 +23,16 @@ export default function EmptyState({ icon, title, description, action }: EmptySt
         {description}
       </p>
       {action && (
-        <Button onClick={action.onClick} data-testid="empty-state-action">
-          {action.label}
-        </Button>
+        <div className="space-y-3">
+          <Button onClick={action.onClick} data-testid="empty-state-action" className="w-full">
+            {action.label}
+          </Button>
+          <div className="text-center">
+            <p className="text-xs text-slate-400">
+              💡 Tip: Start by adding your first story to track citations across AI platforms
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );
