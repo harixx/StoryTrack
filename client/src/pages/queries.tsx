@@ -39,8 +39,7 @@ export default function Queries() {
 
   const runSingleQueryMutation = useMutation({
     mutationFn: async (query: SearchQuery) => {
-      if (!query.storyId) throw new Error("No story associated with this query");
-      const response = await apiRequest("POST", `/api/stories/${query.storyId}/search-citations`);
+      const response = await apiRequest("POST", `/api/queries/${query.id}/search`);
       return response.json();
     },
     onSuccess: (data) => {
@@ -129,9 +128,9 @@ export default function Queries() {
                       variant="ghost" 
                       size="sm"
                       onClick={() => runSingleQueryMutation.mutate(query)}
-                      disabled={runSingleQueryMutation.isPending || !query.storyId}
+                      disabled={runSingleQueryMutation.isPending}
                       data-testid={`button-search-${query.id}`}
-                      title={!query.storyId ? "No story associated" : "Run citation search"}
+                      title="Run search query"
                     >
                       {runSingleQueryMutation.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin" />

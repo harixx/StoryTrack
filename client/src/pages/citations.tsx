@@ -93,10 +93,10 @@ export default function Citations() {
                         <strong>Query:</strong> "{citation.query}"
                       </p>
                       
-                      {citation.citationText && (
+                      {citation.mentionText && (
                         <div className="bg-slate-50 rounded-lg p-4 mb-3">
                           <p className="text-sm text-slate-700" data-testid={`text-citation-${citation.id}`}>
-                            "{citation.citationText}"
+                            "{citation.mentionText}"
                           </p>
                         </div>
                       )}

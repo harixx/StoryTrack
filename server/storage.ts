@@ -77,33 +77,50 @@ export class MemStorage implements IStorage {
     }));
   }
 
-  async createStory(insertStory: InsertStory): Promise<Story> {
+  async createStory(insertStory: any): Promise<Story> {
     const id = randomUUID();
     const now = new Date();
     const story: Story = {
-      ...insertStory,
       id,
-      status: insertStory.status || 'draft',
+      name: insertStory.name || insertStory.title || '',
+      description: insertStory.description || insertStory.content || '',
+      keywords: insertStory.keywords || insertStory.tags || [],
+      industry: insertStory.industry || insertStory.category || '',
       priority: insertStory.priority || 'medium',
-      tags: insertStory.tags || [],
+      status: insertStory.status || 'draft',
       createdAt: now,
       updatedAt: now,
+      // Legacy compatibility properties
+      title: insertStory.name || insertStory.title || '',
+      content: insertStory.description || insertStory.content || '',
+      category: insertStory.industry || insertStory.category || '',
+      tags: insertStory.keywords || insertStory.tags || [],
       publishedAt: insertStory.status === 'published' ? now : null,
-    };
+    } as Story;
     this.stories.set(id, story);
     return story;
   }
 
-  async updateStory(id: string, updateData: Partial<InsertStory>): Promise<Story | undefined> {
+  async updateStory(id: string, updateData: any): Promise<Story | undefined> {
     const story = this.stories.get(id);
     if (!story) return undefined;
 
     const updatedStory: Story = {
       ...story,
-      ...updateData,
+      name: updateData.name || updateData.title || story.name,
+      description: updateData.description || updateData.content || story.description,
+      keywords: updateData.keywords || updateData.tags || story.keywords,
+      industry: updateData.industry || updateData.category || story.industry,
+      priority: updateData.priority || story.priority,
+      status: updateData.status || story.status,
       updatedAt: new Date(),
+      // Legacy compatibility
+      title: updateData.name || updateData.title || story.name,
+      content: updateData.description || updateData.content || story.description,
+      category: updateData.industry || updateData.category || story.industry,
+      tags: updateData.keywords || updateData.tags || story.keywords,
       publishedAt: updateData.status === 'published' && !story.publishedAt ? new Date() : story.publishedAt,
-    };
+    } as Story;
     
     this.stories.set(id, updatedStory);
     return updatedStory;
@@ -199,17 +216,26 @@ export class MemStorage implements IStorage {
       .slice(0, limit);
   }
 
-  async createCitation(insertCitation: InsertCitation): Promise<Citation> {
+  async createCitation(insertCitation: any): Promise<Citation> {
     const id = randomUUID();
     const citation: Citation = {
       ...insertCitation,
       id,
-      storyId: insertCitation.storyId || null,
+      brandId: insertCitation.brandId || insertCitation.storyId || null,
       searchResultId: insertCitation.searchResultId || null,
-      confidence: insertCitation.confidence ?? 0,
+      platform: insertCitation.platform || 'openai',
+      query: insertCitation.query || '',
+      mentionText: insertCitation.mentionText || insertCitation.citationText || '',
       context: insertCitation.context || null,
+      sourceUrls: insertCitation.sourceUrls || [],
+      sentiment: insertCitation.sentiment || 'neutral',
+      mentionType: insertCitation.mentionType || 'direct',
+      confidence: insertCitation.confidence ?? 0,
       foundAt: new Date(),
-    };
+      // Legacy compatibility
+      citationText: insertCitation.mentionText || insertCitation.citationText || '',
+      storyId: insertCitation.brandId || insertCitation.storyId || null,
+    } as Citation;
     this.citations.set(id, citation);
     return citation;
   }

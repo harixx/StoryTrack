@@ -91,7 +91,13 @@ export const insertBrandMentionSchema = createInsertSchema(brandMentions).omit({
 });
 
 // Types - Keep legacy types for compatibility
-export type Story = typeof brands.$inferSelect;
+export type Story = typeof brands.$inferSelect & {
+  title: string;
+  content: string;
+  category: string;
+  tags: string[];
+  publishedAt?: Date | null;
+};
 export type InsertStory = z.infer<typeof insertStorySchema>;
 export type Brand = typeof brands.$inferSelect;
 export type InsertBrand = z.infer<typeof insertBrandSchema>;
@@ -101,11 +107,14 @@ export type SearchResult = typeof searchResults.$inferSelect;
 export type InsertSearchResult = z.infer<typeof insertSearchResultSchema>;
 export type BrandMention = typeof brandMentions.$inferSelect;
 export type InsertBrandMention = z.infer<typeof insertBrandMentionSchema>;
-export type Citation = typeof brandMentions.$inferSelect;
+export type Citation = typeof brandMentions.$inferSelect & {
+  citationText: string;
+  storyId: string;
+};
 export type InsertCitation = z.infer<typeof insertBrandMentionSchema>;
 
 // Additional types for API responses
-export type StoryWithQueries = Brand & {
+export type StoryWithQueries = Story & {
   queries: SearchQuery[];
   citationCount: number;
   lastSearched?: Date;

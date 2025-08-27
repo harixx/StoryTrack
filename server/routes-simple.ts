@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertSearchQuerySchema } from "@shared/schema";
+import { insertSearchQuerySchema, insertBrandSchema } from "@shared/schema";
 import { searchLLMWithQuery } from "./services/openai";
 
 // Simple URL extraction function
@@ -21,7 +21,7 @@ function extractSourceUrls(text: string): string[] {
            domain.includes('.org');
   });
   
-  return [...new Set(newsUrls)]; // Remove duplicates
+  return Array.from(new Set(newsUrls)); // Remove duplicates
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -95,6 +95,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         response.toLowerCase().includes(keyword.toLowerCase())
       );
       
+      // Extract source URLs from the response
+      const sourceUrls = extractSourceUrls(response);
+      
       // Create search result
       const searchResult = await storage.createSearchResult({
         queryId: query.id,
@@ -105,9 +108,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mentionContext: response.substring(0, 500),
         confidence: mentioned ? 75 : 25
       });
-      
-      // Extract source URLs from the response
-      const sourceUrls = extractSourceUrls(response);
+
+      // If brand mentioned, create a citation
+      if (mentioned) {
+        await storage.createCitation({
+          brandId: null,
+          searchResultId: searchResult.id,
+          platform: "openai",
+          query: query.query,
+          mentionText: response.substring(0, 200),
+          context: response.substring(0, 500),
+          sourceUrls: sourceUrls,
+          confidence: 75,
+          sentiment: "neutral",
+          mentionType: "direct"
+        });
+      }
       
       res.json({
         searchResult: {
@@ -146,15 +162,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/dashboard/stats", async (req, res) => {
     try {
       const queries = await storage.getAllQueries();
+      const brands = await storage.getStories(); // Using stories as brands
+      const citations = await storage.getRecentCitations(50);
       const stats = {
         totalQueries: queries.length,
         activeQueries: queries.filter(q => q.isActive).length,
         manualQueries: queries.filter(q => q.generatedBy === 'manual').length,
-        recentQueries: queries.slice(-5)
+        recentQueries: queries.slice(-5),
+        totalStories: brands.length,
+        citations: citations.length,
+        queries: queries.length,
+        citationRate: queries.length > 0 ? Math.round((citations.length / queries.length) * 100) : 0
       };
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch dashboard stats" });
+    }
+  });
+
+  // Stories endpoints (treating brands as stories for compatibility)
+  app.get("/api/stories", async (req, res) => {
+    try {
+      const stories = await storage.getStoriesWithQueries();
+      res.json(stories);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch stories" });
+    }
+  });
+
+  app.post("/api/stories", async (req, res) => {
+    try {
+      const storyData = {
+        name: req.body.title,
+        description: req.body.content,
+        industry: req.body.category,
+        priority: req.body.priority || 'medium',
+        status: req.body.status || 'draft',
+        keywords: req.body.tags || []
+      };
+      const story = await storage.createStory(storyData);
+      res.status(201).json(story);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create story" });
+    }
+  });
+
+  app.put("/api/stories/:id", async (req, res) => {
+    try {
+      const updateData = {
+        name: req.body.title,
+        description: req.body.content,
+        industry: req.body.category,
+        priority: req.body.priority
+      };
+      const story = await storage.updateStory(req.params.id, updateData);
+      if (!story) {
+        return res.status(404).json({ error: "Story not found" });
+      }
+      res.json(story);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update story" });
+    }
+  });
+
+  app.delete("/api/stories/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteStory(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Story not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete story" });
+    }
+  });
+
+  // Citations endpoint
+  app.get("/api/citations", async (req, res) => {
+    try {
+      const citations = await storage.getRecentCitations(50);
+      res.json(citations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch citations" });
+    }
+  });
+
+  // Recent citations for dashboard
+  app.get("/api/dashboard/recent-citations", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 5;
+      const citations = await storage.getRecentCitations(limit);
+      res.json(citations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch recent citations" });
     }
   });
 
