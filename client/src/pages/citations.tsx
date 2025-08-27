@@ -5,8 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Quote, ExternalLink } from "lucide-react";
 import { Citation } from "@shared/schema";
 import EmptyState from "@/components/common/empty-state";
+import { useLocation } from "wouter";
 
 export default function Citations() {
+  const [, setLocation] = useLocation();
+  
   const { data: citations, isLoading } = useQuery<Citation[]>({
     queryKey: ["/api/citations"],
   });
@@ -42,11 +45,8 @@ export default function Citations() {
             title="No Citations Found"
             description="Run citation searches on your published stories to discover where your content is being referenced by AI systems."
             action={{
-              label: "Search for Citations",
-              onClick: () => {
-                window.history.pushState({}, '', '/stories');
-                window.dispatchEvent(new PopStateEvent('popstate'));
-              }
+              label: "Go to Stories",
+              onClick: () => setLocation("/stories")
             }}
           />
         ) : (

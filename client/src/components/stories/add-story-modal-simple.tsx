@@ -117,7 +117,7 @@ export default function AddStoryModal({ open, onOpenChange }: AddStoryModalProps
               name="tags"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tags</FormLabel>
+                  <FormLabel>Tags (Optional)</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="Enter tags separated by commas..."

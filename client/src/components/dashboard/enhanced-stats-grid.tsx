@@ -17,13 +17,7 @@ import type { DashboardStats } from "@shared/schema";
 export default function EnhancedStatsGrid() {
   const { data: stats, isLoading, error } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats"],
-    refetchInterval: (data) => {
-      // Smart refetch: more frequent if there's activity, less if no data
-      if (!data || (data.totalStories === 0 && data.citations === 0)) {
-        return 60000; // 1 minute when no data
-      }
-      return data.citations > 0 ? 15000 : 30000; // 15s if citations exist, 30s otherwise
-    },
+    refetchInterval: 60000, // Refresh every minute
     refetchIntervalInBackground: false, // Don't refetch when tab is not active
   });
 
