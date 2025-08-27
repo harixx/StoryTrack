@@ -4,26 +4,68 @@ import { storage } from "./storage";
 import { insertStorySchema, insertSearchQuerySchema } from "@shared/schema";
 import { queryGenerator } from "./services/queryGenerator";
 import { searchLLMWithQuery, generateBrandMentionQueries } from "./services/openai";
-// import { citationDetector } from "./services/citationDetector";
+// Simple URL extraction function
+function extractSourceUrls(text: string): string[] {
+  const urlPattern = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/g;
+  const urls = text.match(urlPattern) || [];
+  
+  // Filter for likely news/article sources
+  const newsUrls = urls.filter(url => {
+    const domain = url.toLowerCase();
+    return domain.includes('news') || 
+           domain.includes('article') || 
+           domain.includes('blog') ||
+           domain.includes('press') ||
+           domain.includes('media') ||
+           domain.includes('.com') ||
+           domain.includes('.org');
+  });
+  
+  return [...new Set(newsUrls)]; // Remove duplicates
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Generate queries endpoint for frontend
-  app.post("/api/generate-queries", async (req, res) => {
+  // Process query through ChatGPT and check for brand mentions
+  app.post("/api/queries/:id/search", async (req, res) => {
     try {
-      const { title, content, tags } = req.body;
-      if (!title || !content) {
-        return res.status(400).json({ error: "Title and content are required" });
+      const queryId = req.params.id;
+      const query = await storage.getSearchQuery(queryId);
+      
+      if (!query) {
+        return res.status(404).json({ error: "Query not found" });
       }
       
-      console.log("Generating queries for:", { title, content, tags });
-      const queries = await generateSearchQueries(title, content, tags || []);
-      console.log("Generated queries:", queries);
-      res.json({ queries });
+      console.log("Processing query:", query.query);
+      
+      // Search with ChatGPT
+      const response = await searchLLMWithQuery(query.query);
+      console.log("ChatGPT response received, length:", response.length);
+      
+      // Create search result
+      const searchResult = await storage.createSearchResult({
+        queryId: query.id,
+        brandId: null,
+        platform: "openai",
+        response: response,
+        mentioned: response.toLowerCase().includes("tesla") || response.toLowerCase().includes("apple") || response.toLowerCase().includes("brand"), // Simple mention detection
+        mentionContext: response.substring(0, 500),
+        confidence: 50 // Basic confidence for now
+      });
+      
+      // Extract source URLs from the response
+      const sourceUrls = extractSourceUrls(response);
+      
+      res.json({
+        searchResult,
+        sourceUrls,
+        responseLength: response.length,
+        possibleMentions: searchResult.mentioned
+      });
     } catch (error) {
-      console.error("Query generation error:", error);
+      console.error("Query search error:", error);
       res.status(500).json({ 
-        error: "Failed to generate queries", 
+        error: "Failed to process query", 
         details: error instanceof Error ? error.message : "Unknown error"
       });
     }
@@ -50,79 +92,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Stories endpoints
-  app.get("/api/stories", async (req, res) => {
+  // Manual query endpoints - no stories, just direct query management
+  app.get("/api/queries", async (req, res) => {
     try {
-      const stories = await storage.getStoriesWithQueries();
-      res.json(stories);
+      const queries = await storage.getAllQueries();
+      res.json(queries);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch stories" });
+      res.status(500).json({ error: "Failed to fetch queries" });
     }
   });
 
-  app.get("/api/stories/:id", async (req, res) => {
+  app.post("/api/queries", async (req, res) => {
     try {
-      const story = await storage.getStory(req.params.id);
-      if (!story) {
-        return res.status(404).json({ error: "Story not found" });
+      const { query, queryType = "brand_mention" } = req.body;
+      
+      if (!query?.trim()) {
+        return res.status(400).json({ error: "Query text is required" });
       }
-      res.json(story);
+      
+      const queryData = {
+        query: query.trim(),
+        queryType,
+        generatedBy: "manual",
+        brandId: null, // No brand association needed for manual queries
+        isActive: true
+      };
+      
+      const createdQuery = await storage.createSearchQuery(queryData);
+      res.status(201).json(createdQuery);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch story" });
+      console.error("Query creation error:", error);
+      res.status(500).json({ error: "Failed to create query" });
     }
   });
 
-  app.post("/api/stories", async (req, res) => {
+  // Delete query endpoint
+  app.delete("/api/queries/:id", async (req, res) => {
     try {
-      console.log("Received story data:", req.body);
-      
-      if (!req.body) {
-        return res.status(400).json({ error: "Request body is required" });
+      const success = await storage.deleteSearchQuery(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Query not found" });
       }
-      
-      const validatedData = insertStorySchema.parse(req.body);
-      console.log("Validated story data:", validatedData);
-      
-      if (!validatedData.title?.trim()) {
-        return res.status(400).json({ error: "Title is required and cannot be empty" });
-      }
-      
-      if (!validatedData.content?.trim()) {
-        return res.status(400).json({ error: "Content is required and cannot be empty" });
-      }
-      
-      if (validatedData.content.length < 50) {
-        return res.status(400).json({ error: "Content must be at least 50 characters long" });
-      }
-      
-      const story = await storage.createStory(validatedData);
-      res.status(201).json(story);
+      res.status(204).send();
     } catch (error) {
-      console.error("Story creation error:", error);
-      if (error instanceof Error) {
-        res.status(400).json({ error: `Validation failed: ${error.message}` });
-      } else {
-        res.status(500).json({ error: "Failed to create story" });
-      }
+      res.status(500).json({ error: "Failed to delete query" });
     }
   });
-
-  app.put("/api/stories/:id", async (req, res) => {
-    try {
-      if (!req.params.id) {
-        return res.status(400).json({ error: "Story ID is required" });
-      }
-      
-      const validatedData = insertStorySchema.partial().parse(req.body);
-      
-      // Validate non-empty fields if they are provided
-      if (validatedData.title !== undefined && !validatedData.title?.trim()) {
-        return res.status(400).json({ error: "Title cannot be empty if provided" });
-      }
-      
-      if (validatedData.content !== undefined) {
-        if (!validatedData.content?.trim()) {
-          return res.status(400).json({ error: "Content cannot be empty if provided" });
         }
         if (validatedData.content.length < 50) {
           return res.status(400).json({ error: "Content must be at least 50 characters long" });
