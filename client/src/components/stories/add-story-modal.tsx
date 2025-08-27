@@ -47,14 +47,14 @@ export default function AddStoryModal({ open, onOpenChange }: AddStoryModalProps
       queryClient.invalidateQueries({ queryKey: ["/api/stories"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       
-      // If we have generated queries and the story was published, save them
-      if (generatedQueries.length > 0 && newStory.status === "published") {
-        generateQueriesMutation.mutate(newStory.id);
+      // If we have generated queries, save them
+      if (generatedQueries.length > 0) {
+        saveQueriesMutation.mutate(newStory.id);
       }
       
       toast({
         title: "Story created successfully",
-        description: `${newStory.title} has been ${newStory.status === "published" ? "published" : "saved as draft"}.`,
+        description: `${newStory.title} has been ${newStory.status === "published" ? "published" : "saved as draft"}${generatedQueries.length > 0 ? ` with ${generatedQueries.length} search queries.` : "."}.`,
       });
       
       handleClose();
@@ -68,13 +68,16 @@ export default function AddStoryModal({ open, onOpenChange }: AddStoryModalProps
     },
   });
 
-  const generateQueriesMutation = useMutation({
+  const saveQueriesMutation = useMutation({
     mutationFn: async (storyId: string) => {
-      const response = await apiRequest("POST", `/api/stories/${storyId}/generate-queries`);
+      const response = await apiRequest("POST", `/api/stories/${storyId}/save-queries`, {
+        queries: generatedQueries
+      });
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/queries"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stories"] });
     },
   });
 
@@ -335,7 +338,14 @@ export default function AddStoryModal({ open, onOpenChange }: AddStoryModalProps
                 disabled={createStoryMutation.isPending}
                 data-testid="button-save-draft"
               >
-                Save as Draft
+{createStoryMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save as Draft"
+                )}
               </Button>
               <div className="flex items-center space-x-3">
                 <Button
@@ -355,7 +365,14 @@ export default function AddStoryModal({ open, onOpenChange }: AddStoryModalProps
                   disabled={createStoryMutation.isPending}
                   data-testid="button-publish"
                 >
-                  {createStoryMutation.isPending ? "Publishing..." : "Publish & Start Tracking"}
+  {createStoryMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Publishing...
+                  </>
+                ) : (
+                  "Publish & Start Tracking"
+                )}
                 </Button>
               </div>
             </div>

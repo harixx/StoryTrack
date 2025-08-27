@@ -157,6 +157,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate search queries for a story
+  // Save pre-generated queries for a story
+  app.post("/api/stories/:id/save-queries", async (req, res) => {
+    try {
+      const { queries } = req.body;
+      if (!queries || !Array.isArray(queries)) {
+        return res.status(400).json({ error: "Queries array is required" });
+      }
+
+      const story = await storage.getStory(req.params.id);
+      if (!story) {
+        return res.status(404).json({ error: "Story not found" });
+      }
+
+      const savedQueries = await Promise.all(
+        queries.map(query => 
+          storage.createSearchQuery({
+            storyId: story.id,
+            query,
+            generatedBy: "ai",
+            isActive: true,
+          })
+        )
+      );
+
+      res.json(savedQueries);
+    } catch (error) {
+      console.error("Failed to save generated queries:", error);
+      res.status(500).json({ error: "Failed to save generated queries" });
+    }
+  });
+
   app.post("/api/stories/:id/generate-queries", async (req, res) => {
     try {
       const story = await storage.getStory(req.params.id);
