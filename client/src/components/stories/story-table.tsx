@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Eye, Edit, Search, Newspaper, AlertCircle, Trash2 } from "lucide-react";
+import { Eye, Edit, Search, Newspaper, AlertCircle, Trash2, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { StoryWithQueries, Story } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -36,13 +36,14 @@ export default function StoryTable() {
       
       toast({
         title: "Citation search completed",
-        description: `Found ${data.citations.length} citations from ${data.summary.successfulSearches} searches.`,
+        description: `Found ${data.citations?.length || 0} citations from ${data.summary?.successfulSearches || 0} searches.`,
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Citation search error:", error);
       toast({
         title: "Search failed",
-        description: "Failed to search for citations. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to search for citations. Please try again.",
         variant: "destructive",
       });
     },
@@ -227,8 +228,13 @@ export default function StoryTable() {
                         onClick={() => searchCitationsMutation.mutate(story.id)}
                         disabled={searchCitationsMutation.isPending || story.queries.length === 0}
                         data-testid={`button-search-${story.id}`}
+                        title={story.queries.length === 0 ? "Generate queries first" : "Search for citations"}
                       >
-                        <Search className="h-4 w-4" />
+                        {searchCitationsMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Search className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </td>

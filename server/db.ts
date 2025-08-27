@@ -2,14 +2,14 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { stories, searchQueries, searchResults, citations, type Story, type InsertStory, type SearchQuery, type InsertSearchQuery, type SearchResult, type InsertSearchResult, type Citation, type InsertCitation, type StoryWithQueries, type DashboardStats } from "@shared/schema";
 import type { IStorage } from "./storage";
-import { eq, desc, sql, count } from "drizzle-orm";
+import { eq, desc, count } from "drizzle-orm";
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL environment variable is required");
 }
 
-const sql = postgres(process.env.DATABASE_URL!);
-const db = drizzle(sql);
+const client = postgres(process.env.DATABASE_URL!);
+const db = drizzle(client);
 
 export class DatabaseStorage implements IStorage {
   // Stories
@@ -80,7 +80,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(searchQueries).where(eq(searchQueries.storyId, id));
     
     const result = await db.delete(stories).where(eq(stories.id, id));
-    return (result.rowCount || 0) > 0;
+    return result.length > 0;
   }
 
   // Search Queries
@@ -109,11 +109,14 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSearchQuery(id: string): Promise<boolean> {
     // Delete related records first
-    await db.delete(citations).where(eq(citations.searchResultId, sql`(SELECT id FROM ${searchResults} WHERE query_id = ${id})`));
+    const relatedResults = await db.select({ id: searchResults.id }).from(searchResults).where(eq(searchResults.queryId, id));
+    for (const result of relatedResults) {
+      await db.delete(citations).where(eq(citations.searchResultId, result.id));
+    }
     await db.delete(searchResults).where(eq(searchResults.queryId, id));
     
     const result = await db.delete(searchQueries).where(eq(searchQueries.id, id));
-    return (result.rowCount || 0) > 0;
+    return result.length > 0;
   }
 
   // Search Results
@@ -168,13 +171,11 @@ export class DatabaseStorage implements IStorage {
         db.select({ count: count() }).from(searchQueries),
       ]);
 
-      const searchResultsWithCitations = await db.select({ 
-        total: count(),
-        cited: sql<number>`COUNT(CASE WHEN ${searchResults.cited} THEN 1 END)`
-      }).from(searchResults);
+      const totalResults = await db.select({ count: count() }).from(searchResults);
+      const citedResults = await db.select({ count: count() }).from(searchResults).where(eq(searchResults.cited, true));
 
-      const totalSearches = Number(searchResultsWithCitations[0]?.total || 0);
-      const citedSearches = Number(searchResultsWithCitations[0]?.cited || 0);
+      const totalSearches = Number(totalResults[0]?.count || 0);
+      const citedSearches = Number(citedResults[0]?.count || 0);
       const citationRate = totalSearches > 0 ? Math.round((citedSearches / totalSearches) * 100) : 0;
 
       return {

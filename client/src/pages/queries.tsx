@@ -3,7 +3,7 @@ import Header from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Trash2, Plus } from "lucide-react";
+import { Search, Trash2, Plus, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SearchQuery } from "@shared/schema";
@@ -131,8 +131,13 @@ export default function Queries() {
                       onClick={() => runSingleQueryMutation.mutate(query)}
                       disabled={runSingleQueryMutation.isPending || !query.storyId}
                       data-testid={`button-search-${query.id}`}
+                      title={!query.storyId ? "No story associated" : "Run citation search"}
                     >
-                      <Search className="h-4 w-4" />
+                      {runSingleQueryMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Search className="h-4 w-4" />
+                      )}
                     </Button>
                     <Button 
                       variant="ghost" 

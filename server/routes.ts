@@ -75,8 +75,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/stories", async (req, res) => {
     try {
       console.log("Received story data:", req.body);
+      
+      if (!req.body) {
+        return res.status(400).json({ error: "Request body is required" });
+      }
+      
       const validatedData = insertStorySchema.parse(req.body);
       console.log("Validated story data:", validatedData);
+      
+      if (!validatedData.title?.trim()) {
+        return res.status(400).json({ error: "Title is required and cannot be empty" });
+      }
+      
+      if (!validatedData.content?.trim()) {
+        return res.status(400).json({ error: "Content is required and cannot be empty" });
+      }
+      
+      if (validatedData.content.length < 50) {
+        return res.status(400).json({ error: "Content must be at least 50 characters long" });
+      }
+      
       const story = await storage.createStory(validatedData);
       res.status(201).json(story);
     } catch (error) {
@@ -84,21 +102,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof Error) {
         res.status(400).json({ error: `Validation failed: ${error.message}` });
       } else {
-        res.status(400).json({ error: "Invalid story data" });
+        res.status(500).json({ error: "Failed to create story" });
       }
     }
   });
 
   app.put("/api/stories/:id", async (req, res) => {
     try {
+      if (!req.params.id) {
+        return res.status(400).json({ error: "Story ID is required" });
+      }
+      
       const validatedData = insertStorySchema.partial().parse(req.body);
+      
+      // Validate non-empty fields if they are provided
+      if (validatedData.title !== undefined && !validatedData.title?.trim()) {
+        return res.status(400).json({ error: "Title cannot be empty if provided" });
+      }
+      
+      if (validatedData.content !== undefined) {
+        if (!validatedData.content?.trim()) {
+          return res.status(400).json({ error: "Content cannot be empty if provided" });
+        }
+        if (validatedData.content.length < 50) {
+          return res.status(400).json({ error: "Content must be at least 50 characters long" });
+        }
+      }
+      
       const story = await storage.updateStory(req.params.id, validatedData);
       if (!story) {
         return res.status(404).json({ error: "Story not found" });
       }
       res.json(story);
     } catch (error) {
-      res.status(400).json({ error: "Invalid story data" });
+      console.error("Story update error:", error);
+      if (error instanceof Error) {
+        res.status(400).json({ error: `Validation failed: ${error.message}` });
+      } else {
+        res.status(500).json({ error: "Failed to update story" });
+      }
     }
   });
 

@@ -17,7 +17,8 @@ import type { DashboardStats } from "@shared/schema";
 export default function EnhancedStatsGrid() {
   const { data: stats, isLoading, error } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats"],
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 30000, // 30 seconds
+    refetchIntervalInBackground: false, // Don't refetch when tab is not active
   });
 
   if (isLoading) {

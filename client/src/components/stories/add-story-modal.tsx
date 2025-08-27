@@ -13,7 +13,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { insertStorySchema, type InsertStory } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
-// import { TagInput } from "@/components/ui/tag-input";
+import { TagInput } from "@/components/ui/tag-input";
 
 interface AddStoryModalProps {
   open: boolean;
@@ -126,6 +126,34 @@ export default function AddStoryModal({ open, onOpenChange }: AddStoryModalProps
   };
 
   const onSubmit = (data: InsertStory) => {
+    // Additional client-side validation
+    if (!data.title?.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Story title is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!data.content?.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Story content is required.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (data.content.length < 50) {
+      toast({
+        title: "Validation Error",
+        description: "Story content should be at least 50 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     createStoryMutation.mutate(data);
   };
 
@@ -233,13 +261,11 @@ export default function AddStoryModal({ open, onOpenChange }: AddStoryModalProps
                 <FormItem>
                   <FormLabel>Tags</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="Enter tags separated by commas..."
-                      value={Array.isArray(field.value) ? field.value.join(', ') : field.value || ''}
-                      onChange={(e) => {
-                        const tags = e.target.value.split(',').map(tag => tag.trim()).filter(Boolean);
-                        field.onChange(tags);
-                      }}
+                    <TagInput
+                      value={field.value || []}
+                      onChange={field.onChange}
+                      placeholder="Add tags to help with search query generation..."
+                      maxTags={8}
                       data-testid="input-tags"
                     />
                   </FormControl>
