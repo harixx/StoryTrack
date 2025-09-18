@@ -264,7 +264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const generatedQueries = await generateBrandMentionQueries(
         story.name, 
         story.keywords || [], 
-        story.industry
+        story.industry || undefined
       );
       
       // Take the requested number of queries
@@ -309,6 +309,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(queries);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch story queries" });
+    }
+  });
+
+  // Generate queries endpoint (simplified - works without story ID for testing)
+  app.post("/api/generate-queries", async (req, res) => {
+    try {
+      const { storyId } = req.body;
+      
+      if (!storyId) {
+        return res.status(400).json({ error: "Story ID is required" });
+      }
+      
+      // Redirect to the proper endpoint
+      const story = await storage.getStory(storyId);
+      
+      if (!story) {
+        return res.status(404).json({ error: "Story not found" });
+      }
+      
+      const { count = 5 } = req.body;
+      
+      // Import the query generation function
+      const { generateBrandMentionQueries } = await import('./services/openai.js');
+      
+      // Generate queries using the story data
+      const generatedQueries = await generateBrandMentionQueries(
+        story.title || story.name, 
+        story.tags || story.keywords || [], 
+        story.category || story.industry || undefined
+      );
+      
+      // Take the requested number of queries
+      const selectedQueries = generatedQueries.slice(0, Math.max(1, Math.min(count, 12)));
+      
+      // Create search query records in the database
+      const createdQueries = await Promise.all(
+        selectedQueries.map(async (queryText) => {
+          return await storage.createSearchQuery({
+            query: queryText,
+            queryType: "brand_mention",
+            generatedBy: "ai",
+            brandId: storyId,
+            isActive: true
+          });
+        })
+      );
+      
+      res.status(201).json({
+        story: {
+          id: story.id,
+          name: story.title || story.name,
+          keywords: story.tags || story.keywords,
+          industry: story.category || story.industry
+        },
+        generatedQueries: createdQueries,
+        count: createdQueries.length
+      });
+    } catch (error) {
+      console.error("Query generation error:", error);
+      res.status(500).json({ 
+        error: "Failed to generate queries", 
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Alternative endpoint format for frontend compatibility  
+  app.post("/api/stories/:id/generate-queries", async (req, res) => {
+    try {
+      const storyId = req.params.id;
+      const story = await storage.getStory(storyId);
+      
+      if (!story) {
+        return res.status(404).json({ error: "Story not found" });
+      }
+      
+      const { count = 5 } = req.body;
+      
+      // Import the query generation function
+      const { generateBrandMentionQueries } = await import('./services/openai.js');
+      
+      // Generate queries using the story data
+      const generatedQueries = await generateBrandMentionQueries(
+        story.title || story.name, 
+        story.tags || story.keywords || [], 
+        story.category || story.industry || undefined
+      );
+      
+      // Take the requested number of queries
+      const selectedQueries = generatedQueries.slice(0, Math.max(1, Math.min(count, 12)));
+      
+      // Create search query records in the database
+      const createdQueries = await Promise.all(
+        selectedQueries.map(async (queryText) => {
+          return await storage.createSearchQuery({
+            query: queryText,
+            queryType: "brand_mention",
+            generatedBy: "ai",
+            brandId: storyId,
+            isActive: true
+          });
+        })
+      );
+      
+      res.status(201).json({
+        story: {
+          id: story.id,
+          name: story.title || story.name,
+          keywords: story.tags || story.keywords,
+          industry: story.category || story.industry
+        },
+        generatedQueries: createdQueries,
+        count: createdQueries.length
+      });
+    } catch (error) {
+      console.error("Query generation error:", error);
+      res.status(500).json({ 
+        error: "Failed to generate queries", 
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

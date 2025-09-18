@@ -24,7 +24,7 @@ export async function searchLLMWithQuery(query: string): Promise<string> {
   
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
       messages: [
         {
           role: "user",
@@ -76,7 +76,7 @@ Each query should be:
 Respond with a JSON object containing an array of query strings: { "queries": ["query1", "query2", ...] }`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
       messages: [
         {
           role: "system",
