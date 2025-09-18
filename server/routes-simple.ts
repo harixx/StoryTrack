@@ -314,6 +314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Generate queries endpoint (supports both story ID and direct content)
   app.post("/api/generate-queries", async (req, res) => {
+    console.log("🔍 Generate queries request received:", { storyId, title, content, tags: req.body.tags });
     try {
       const { storyId, title, content, tags, count = 5 } = req.body;
       
