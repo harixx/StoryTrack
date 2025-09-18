@@ -4,7 +4,7 @@ export class QueryGenerator {
   async generateQueriesFromStory(title: string, content: string, tags: string[]): Promise<string[]> {
     try {
       // Use OpenAI to generate contextual queries
-      const aiQueries = await generateSearchQueries(title, content, tags);
+      const aiQueries = await generateBrandMentionQueries(title, tags);
       
       // Generate some basic template queries as fallback
       const templateQueries = this.generateTemplateQueries(title, tags);
