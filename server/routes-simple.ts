@@ -312,60 +312,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate queries endpoint (simplified - works without story ID for testing)
+  // Generate queries endpoint (supports both story ID and direct content)
   app.post("/api/generate-queries", async (req, res) => {
     try {
-      const { storyId } = req.body;
-      
-      if (!storyId) {
-        return res.status(400).json({ error: "Story ID is required" });
-      }
-      
-      // Redirect to the proper endpoint
-      const story = await storage.getStory(storyId);
-      
-      if (!story) {
-        return res.status(404).json({ error: "Story not found" });
-      }
-      
-      const { count = 5 } = req.body;
+      const { storyId, title, content, tags, count = 5 } = req.body;
       
       // Import the query generation function
       const { generateBrandMentionQueries } = await import('./services/openai.js');
       
-      // Generate queries using the story data
-      const generatedQueries = await generateBrandMentionQueries(
-        story.title || story.name, 
-        story.tags || story.keywords || [], 
-        story.category || story.industry || undefined
-      );
-      
-      // Take the requested number of queries
-      const selectedQueries = generatedQueries.slice(0, Math.max(1, Math.min(count, 12)));
-      
-      // Create search query records in the database
-      const createdQueries = await Promise.all(
-        selectedQueries.map(async (queryText) => {
-          return await storage.createSearchQuery({
-            query: queryText,
-            queryType: "brand_mention",
-            generatedBy: "ai",
-            brandId: storyId,
-            isActive: true
-          });
-        })
-      );
-      
-      res.status(201).json({
-        story: {
-          id: story.id,
-          name: story.title || story.name,
-          keywords: story.tags || story.keywords,
-          industry: story.category || story.industry
-        },
-        generatedQueries: createdQueries,
-        count: createdQueries.length
-      });
+      if (storyId) {
+        // Generate queries for an existing story
+        const story = await storage.getStory(storyId);
+        
+        if (!story) {
+          return res.status(404).json({ error: "Story not found" });
+        }
+        
+        const generatedQueries = await generateBrandMentionQueries(
+          story.title || story.name, 
+          story.tags || story.keywords || [], 
+          story.category || story.industry || undefined
+        );
+        
+        const selectedQueries = generatedQueries.slice(0, Math.max(1, Math.min(count, 12)));
+        
+        // Create search query records in the database
+        const createdQueries = await Promise.all(
+          selectedQueries.map(async (queryText) => {
+            return await storage.createSearchQuery({
+              query: queryText,
+              queryType: "brand_mention",
+              generatedBy: "ai",
+              brandId: storyId,
+              isActive: true
+            });
+          })
+        );
+        
+        res.status(201).json({
+          story: {
+            id: story.id,
+            name: story.title || story.name,
+            keywords: story.tags || story.keywords,
+            industry: story.category || story.industry
+          },
+          generatedQueries: createdQueries,
+          count: createdQueries.length
+        });
+      } else if (title && content) {
+        // Generate queries directly from content (for preview before saving)
+        const generatedQueries = await generateBrandMentionQueries(
+          title, 
+          Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : []), 
+          undefined
+        );
+        
+        const selectedQueries = generatedQueries.slice(0, Math.max(1, Math.min(count, 8)));
+        
+        res.status(200).json({
+          queries: selectedQueries,
+          count: selectedQueries.length
+        });
+      } else {
+        return res.status(400).json({ 
+          error: "Either 'storyId' or both 'title' and 'content' are required" 
+        });
+      }
     } catch (error) {
       console.error("Query generation error:", error);
       res.status(500).json({ 
