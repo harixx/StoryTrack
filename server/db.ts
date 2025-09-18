@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { brands, searchQueries, searchResults, brandMentions, type Brand, type InsertBrand, type SearchQuery, type InsertSearchQuery, type SearchResult, type InsertSearchResult, type BrandMention, type InsertBrandMention, type BrandWithQueries, type DashboardStats, type Story, type InsertStory, type Citation, type InsertCitation, type StoryWithQueries } from "@shared/schema";
+import { brands as stories, searchQueries, searchResults, brandMentions as citations, type Brand, type InsertBrand, type SearchQuery, type InsertSearchQuery, type SearchResult, type InsertSearchResult, type BrandMention, type InsertBrandMention, type BrandWithQueries, type DashboardStats, type Story, type InsertStory, type Citation, type InsertCitation, type StoryWithQueries } from "@shared/schema";
 import type { IStorage } from "./storage";
 import { eq, desc, count } from "drizzle-orm";
 
@@ -14,13 +14,34 @@ const db = drizzle(client);
 export class DatabaseStorage implements IStorage {
   // Stories
   async getStory(id: string): Promise<Story | undefined> {
-    const result = await db.select().from(brands).where(eq(brands.id, id)).limit(1);
-    return result[0];
+    const result = await db.select().from(stories).where(eq(stories.id, id)).limit(1);
+    if (!result[0]) return undefined;
+    
+    // Map Brand schema to Story interface
+    const brand = result[0];
+    return {
+      ...brand,
+      title: brand.name,
+      content: brand.description || '',
+      category: brand.industry || '',
+      tags: brand.keywords || [],
+      publishedAt: brand.createdAt
+    } as Story;
   }
 
   async getStories(): Promise<Story[]> {
     try {
-      return await db.select().from(brands).orderBy(desc(brands.createdAt));
+      const brands = await db.select().from(stories).orderBy(desc(stories.createdAt));
+      
+      // Map Brand schema to Story interface
+      return brands.map(brand => ({
+        ...brand,
+        title: brand.name,
+        content: brand.description || '',
+        category: brand.industry || '',
+        tags: brand.keywords || [],
+        publishedAt: brand.createdAt
+      } as Story));
     } catch (error) {
       console.error("Error in getStories:", error);
       return [];
@@ -34,7 +55,7 @@ export class DatabaseStorage implements IStorage {
       const storiesWithQueries = await Promise.all(
         allStories.map(async (story) => {
           const queries = await this.getQueriesByStoryId(story.id);
-          const citationCountResult = await db.select({ count: count() }).from(brandMentions).where(eq(brandMentions.brandId, story.id));
+          const citationCountResult = await db.select({ count: count() }).from(citations).where(eq(citations.brandId, story.id));
           const searchResultsForStory = await db.select().from(searchResults).where(eq(searchResults.brandId, story.id)).orderBy(desc(searchResults.searchedAt)).limit(1);
           
           return {
@@ -54,7 +75,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createStory(story: any): Promise<Story> {
-    const result = await db.insert(brands).values({
+    const result = await db.insert(stories).values({
       name: story.name || story.title || '',
       description: story.description || story.content || '', 
       industry: story.industry || story.category || '',
@@ -62,11 +83,20 @@ export class DatabaseStorage implements IStorage {
       status: story.status || 'draft',
       keywords: story.keywords || story.tags || []
     }).returning();
-    return result[0] as Story;
+    
+    const brand = result[0];
+    return {
+      ...brand,
+      title: brand.name,
+      content: brand.description || '',
+      category: brand.industry || '',
+      tags: brand.keywords || [],
+      publishedAt: brand.createdAt
+    } as Story;
   }
 
   async updateStory(id: string, story: any): Promise<Story | undefined> {
-    const result = await db.update(brands)
+    const result = await db.update(stories)
       .set({
         name: story.name || story.title,
         description: story.description || story.content,
@@ -76,19 +106,30 @@ export class DatabaseStorage implements IStorage {
         keywords: story.keywords || story.tags,
         updatedAt: new Date()
       })
-      .where(eq(brands.id, id))
+      .where(eq(stories.id, id))
       .returning();
-    return result[0] as Story;
+    
+    if (!result[0]) return undefined;
+    
+    const brand = result[0];
+    return {
+      ...brand,
+      title: brand.name,
+      content: brand.description || '',
+      category: brand.industry || '',
+      tags: brand.keywords || [],
+      publishedAt: brand.createdAt
+    } as Story;
   }
 
   async deleteStory(id: string): Promise<boolean> {
     try {
       // Delete related records first (this should be handled by CASCADE in production)
-      await db.delete(brandMentions).where(eq(brandMentions.brandId, id));
+      await db.delete(citations).where(eq(citations.brandId, id));
       await db.delete(searchResults).where(eq(searchResults.brandId, id));
       await db.delete(searchQueries).where(eq(searchQueries.brandId, id));
       
-      const result = await db.delete(brands).where(eq(brands.id, id));
+      const result = await db.delete(stories).where(eq(stories.id, id));
       return result.count > 0;
     } catch (error) {
       console.error("Error deleting story:", error);
@@ -148,7 +189,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getResultsByStoryId(storyId: string): Promise<SearchResult[]> {
-    return await db.select().from(searchResults).where(eq(searchResults.storyId, storyId)).orderBy(desc(searchResults.searchedAt));
+    return await db.select().from(searchResults).where(eq(searchResults.brandId, storyId)).orderBy(desc(searchResults.searchedAt));
   }
 
   async createSearchResult(result: InsertSearchResult): Promise<SearchResult> {
@@ -163,12 +204,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCitationsByStoryId(storyId: string): Promise<Citation[]> {
-    return await db.select().from(citations).where(eq(citations.storyId, storyId)).orderBy(desc(citations.foundAt));
+    const mentions = await db.select().from(citations).where(eq(citations.brandId, storyId)).orderBy(desc(citations.foundAt));
+    
+    // Map BrandMention to Citation interface
+    return mentions.map(mention => ({
+      ...mention,
+      citationText: mention.mentionText,
+      storyId: mention.brandId || storyId
+    })) as Citation[];
   }
 
   async getRecentCitations(limit: number = 10): Promise<Citation[]> {
     try {
-      return await db.select().from(brandMentions).orderBy(desc(brandMentions.foundAt)).limit(limit);
+      const mentions = await db.select().from(citations).orderBy(desc(citations.foundAt)).limit(limit);
+      
+      // Map BrandMention to Citation interface
+      return mentions.map(mention => ({
+        ...mention,
+        citationText: mention.mentionText,
+        storyId: mention.brandId || ''
+      })) as Citation[];
     } catch (error) {
       console.error("Error in getRecentCitations:", error);
       return [];
@@ -177,7 +232,12 @@ export class DatabaseStorage implements IStorage {
 
   async createCitation(citation: InsertCitation): Promise<Citation> {
     const result = await db.insert(citations).values(citation).returning();
-    return result[0];
+    const mention = result[0];
+    return {
+      ...mention,
+      citationText: mention.mentionText,
+      storyId: mention.brandId || ''
+    } as Citation;
   }
 
   // Dashboard
@@ -190,7 +250,7 @@ export class DatabaseStorage implements IStorage {
       ]);
 
       const totalResults = await db.select({ count: count() }).from(searchResults);
-      const citedResults = await db.select({ count: count() }).from(searchResults).where(eq(searchResults.cited, true));
+      const citedResults = await db.select({ count: count() }).from(searchResults).where(eq(searchResults.mentioned, true));
 
       const totalSearches = Number(totalResults[0]?.count || 0);
       const citedSearches = Number(citedResults[0]?.count || 0);
